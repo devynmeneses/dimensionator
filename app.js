@@ -26,6 +26,146 @@ function loadRenderFont() {
   return renderFontReady;
 }
 
+function computePotCenterXRimBased(imageData, bbox, opts = {}) {
+  const { data, width: w } = imageData;
+
+  const alphaMin = opts.alphaMin ?? 10;
+  const minRunFrac = opts.minRunFrac ?? 0.25; // rim must be wide
+  const colorVarMax = opts.colorVarMax ?? 18;
+
+  const { left, right, bottom, top } = bbox;
+  const bboxW = right - left;
+  const minRun = Math.floor(bboxW * minRunFrac);
+
+  // Scan upward from bottom
+  for (let y = bottom - 1; y >= top; y--) {
+    const rowBase = y * w * 4;
+
+    let runStart = null;
+
+    for (let x = left; x < right; x++) {
+      const idx = rowBase + x * 4;
+      const a = data[idx + 3];
+
+      if (a > alphaMin) {
+        if (runStart === null) runStart = x;
+      } else if (runStart !== null) {
+        const runEnd = x - 1;
+        const runW = runEnd - runStart + 1;
+
+        if (runW >= minRun) {
+          // check color variance across the run
+          let rSum = 0, gSum = 0, bSum = 0;
+          for (let i = runStart; i <= runEnd; i++) {
+            const ii = rowBase + i * 4;
+            rSum += data[ii];
+            gSum += data[ii + 1];
+            bSum += data[ii + 2];
+          }
+          const n = runW;
+          const rAvg = rSum / n, gAvg = gSum / n, bAvg = bSum / n;
+
+          let varSum = 0;
+          for (let i = runStart; i <= runEnd; i++) {
+            const ii = rowBase + i * 4;
+            varSum += Math.abs(data[ii] - rAvg);
+            varSum += Math.abs(data[ii + 1] - gAvg);
+            varSum += Math.abs(data[ii + 2] - bAvg);
+          }
+
+          const colorVar = varSum / (n * 3);
+          if (colorVar <= colorVarMax) {
+            // Found pot rim
+            return (runStart + runEnd) / 2;
+          }
+        }
+
+        runStart = null;
+      }
+    }
+  }
+
+  return null;
+}
+
+
+function computePotCenterXFromBBox(imageData, bbox, opts = {}) {
+  const { data, width: w, height: h } = imageData;
+
+  const alphaMin   = opts.alphaMin ?? 10;
+  const potFrac    = opts.potFrac ?? 0.38;   // bottom ~38% of the plant bbox height
+  const minRunFrac = opts.minRunFrac ?? 0.10; // run must be >= 10% of bbox width
+  const keepRowFrac= opts.keepRowFrac ?? 0.72; // keep rows within 72% of max run
+
+  const left = bbox.left, right = bbox.right, top = bbox.top, bottom = bbox.bottom;
+  const bboxW = Math.max(1, right - left);
+  const bboxH = Math.max(1, bottom - top);
+
+  const yStart = Math.floor(bottom - bboxH * potFrac);
+  const minRun = Math.max(2, Math.floor(bboxW * minRunFrac));
+
+  let globalBestW = 0;
+  const rows = []; // { xMid, runW }
+
+  for (let y = yStart; y < bottom; y++) {
+    const rowBase = y * w * 4;
+
+    let bestW = 0;
+    let bestMid = null;
+
+    let inRun = false;
+    let runStart = 0;
+
+    for (let x = left; x < right; x++) {
+      const a = data[rowBase + x * 4 + 3];
+      const fg = a > alphaMin;
+
+      if (fg && !inRun) {
+        inRun = true;
+        runStart = x;
+      } else if (!fg && inRun) {
+        inRun = false;
+        const runEnd = x - 1;
+        const runW = runEnd - runStart + 1;
+
+        if (runW >= minRun && runW > bestW) {
+          bestW = runW;
+          bestMid = (runStart + runEnd) / 2;
+        }
+      }
+    }
+
+    if (inRun) {
+      const runEnd = right - 1;
+      const runW = runEnd - runStart + 1;
+      if (runW >= minRun && runW > bestW) {
+        bestW = runW;
+        bestMid = (runStart + runEnd) / 2;
+      }
+    }
+
+    if (bestMid != null) {
+      rows.push({ xMid: bestMid, runW: bestW });
+      if (bestW > globalBestW) globalBestW = bestW;
+    }
+  }
+
+  if (!rows.length || globalBestW === 0) return null;
+
+  const keepW = globalBestW * keepRowFrac;
+
+  let sumX = 0, sumW = 0;
+  for (const r of rows) {
+    if (r.runW >= keepW) {
+      sumX += r.xMid * r.runW;
+      sumW += r.runW;
+    }
+  }
+
+  if (sumW === 0) return null;
+  return sumX / sumW; // X in imageData coordinates (0..w)
+}
+
 function debounce(fn, ms = 200) {
   let t = null;
   return (...args) => {
@@ -196,32 +336,81 @@ function renderComposite({
   const maxW = Math.max(1, plantAreaW - 2 * pad);
   const maxH = Math.max(1, plantAreaH - 2 * pad);
 
-  const scale = Math.min(maxW / sourceImg.width, maxH / sourceImg.height);
-  const newW = Math.max(1, Math.floor(sourceImg.width * scale));
-  const newH = Math.max(1, Math.floor(sourceImg.height * scale));
+  let scale = Math.min(maxW / sourceImg.width, maxH / sourceImg.height);
+  let newW = Math.max(1, Math.floor(sourceImg.width * scale));
+  let newH = Math.max(1, Math.floor(sourceImg.height * scale));
 
-  // Center on full canvas (allow under left/bottom zones)
-  const x0 = Math.max(pad, Math.min(Math.floor((target - newW) / 2), target - pad - newW));
+  const half = target / 2;
+
+  function buildAnalysisCanvas() {
+    const c = document.createElement("canvas");
+    c.width = newW;
+    c.height = newH;
+    const cctx = c.getContext("2d", { willReadFrequently: true });
+    cctx.clearRect(0, 0, newW, newH);
+    cctx.drawImage(sourceImg, 0, 0, newW, newH);
+    return { c, cctx };
+  }
+
+  let plantC, pctx, imgData, bbox, potCenterX;
+
+  for (let iter = 0; iter < 5; iter++) {
+    ({ c: plantC, cctx: pctx } = buildAnalysisCanvas());
+
+    imgData = pctx.getImageData(0, 0, newW, newH);
+    bbox = foregroundBBoxFromImageData(imgData, bgMode, whiteThreshold);
+
+    // fallback bbox = whole image if nothing found
+    if (!bbox) bbox = { left: 0, top: 0, right: newW, bottom: newH };
+
+    potCenterX = computePotCenterXRimBased(imgData, bbox, {
+      alphaMin: 10,
+      minRunFrac: 0.25,
+      colorVarMax: 18
+    });
+
+
+    if (potCenterX == null) potCenterX = newW / 2;
+
+    const x0Ideal = Math.floor(half - potCenterX);
+
+    // If it fits with padding, we’re done
+    if (x0Ideal >= pad && x0Ideal <= target - pad - newW) {
+      break;
+    }
+
+    // Otherwise scale down a bit and try again
+    // (keep aspect ratio, preserve pot-centered intent)
+    const shrink = 0.92; // gentle shrink per iteration
+    scale *= shrink;
+    newW = Math.max(1, Math.floor(sourceImg.width * scale));
+    newH = Math.max(1, Math.floor(sourceImg.height * scale));
+  }
+
+  // Now place pot-centered (with final safety clamp)
+  const x0Ideal = Math.floor(half - potCenterX);
+  const x0 = Math.max(pad, Math.min(x0Ideal, target - pad - newW));
   const y0 = Math.max(pad, Math.min(Math.floor((target - newH) / 2), target - pad - newH));
 
-  // Draw plant
   ctx.drawImage(sourceImg, x0, y0, newW, newH);
 
-  // Build an offscreen canvas for bbox detection from the resized plant
-  const plantC = document.createElement("canvas");
-  plantC.width = newW;
-  plantC.height = newH;
-  const pctx = plantC.getContext("2d");
-  pctx.clearRect(0, 0, newW, newH);
-  pctx.drawImage(sourceImg, 0, 0, newW, newH);
+  // DEBUG: visualize computed pot center
+  //ctx.save();
+  //ctx.strokeStyle = "red";
+  //ctx.lineWidth = 2;
+  //ctx.beginPath();
+  //ctx.moveTo(x0 + potCenterX, 0);
+  //ctx.lineTo(x0 + potCenterX, target);
+  //ctx.stroke();
+  //ctx.restore();
 
-  const imgData = pctx.getImageData(0, 0, newW, newH);
-  const bbox = foregroundBBoxFromImageData(imgData, bgMode, whiteThreshold);
 
-  let left = 0, top = 0, right = newW, bottom = newH;
-  if (bbox) {
-    ({ left, top, right, bottom } = bbox);
-  }
+
+  // Use the bbox we computed in the loop
+  let left = bbox.left, top = bbox.top, right = bbox.right, bottom = bbox.bottom;
+
+  if (bbox) ({ left, top, right, bottom } = bbox);
+
 
   // Translate bbox into output coordinates
   const plantLeft = x0 + left;
@@ -289,27 +478,61 @@ function renderComposite({
     ctx.stroke();
   }
 
-  // Bottom horizontal dimension line
+  // Bottom horizontal dimension line + label (anchored to pot center axis)
   const hy = target - Math.floor(marginBottom / 2);
-  ctx.beginPath();
-  ctx.moveTo(hxLeft, hy);
-  ctx.lineTo(hxRight, hy);
-  ctx.stroke();
+  const potAxisX = Math.floor(x0 + potCenterX);
 
-  // Width label centered on the line (with knockout)
   if (widthLabel && widthLabel.trim().length > 0) {
-    const textW = ctx.measureText(widthLabel).width;
+    const label = widthLabel.trim();
+    const textW = ctx.measureText(label).width;
     const th = fontSize;
     const padding = Math.max(6, Math.floor(th / 4));
 
-    const tx = Math.floor((hxLeft + hxRight) / 2 - textW / 2);
+    // Center the TEXT on the pot axis
+    let tx = Math.floor(potAxisX - textW / 2);
     const ty = Math.floor(hy - th / 2);
 
+    // Knockout rect bounds
+    const boxL = tx - padding;
+    const boxR = tx + textW + padding;
+
+    // Keep the label box from going outside the dimension span
+    // If it would, clamp tx and shift box accordingly.
+    if (boxL < hxLeft) {
+      tx += (hxLeft - boxL);
+    } else if (boxR > hxRight) {
+      tx -= (boxR - hxRight);
+    }
+
+    const adjBoxL = tx - padding;
+    const adjBoxR = tx + textW + padding;
+
+    // Draw the line in two segments, leaving a gap under the label box
+    ctx.beginPath();
+    if (adjBoxL > hxLeft) {
+      ctx.moveTo(hxLeft, hy);
+      ctx.lineTo(adjBoxL, hy);
+    }
+    if (adjBoxR < hxRight) {
+      ctx.moveTo(adjBoxR, hy);
+      ctx.lineTo(hxRight, hy);
+    }
+    ctx.stroke();
+
+    // Draw knockout + text
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(tx - padding, ty - padding, textW + 2 * padding, th + 2 * padding);
+    ctx.fillRect(adjBoxL, ty - padding, (adjBoxR - adjBoxL), th + 2 * padding);
     ctx.fillStyle = "#000000";
-    ctx.fillText(widthLabel, tx, ty);
+    ctx.fillText(label, tx, ty);
+
+  } else {
+    // No label: draw full line
+    ctx.beginPath();
+    ctx.moveTo(hxLeft, hy);
+    ctx.lineTo(hxRight, hy);
+    ctx.stroke();
   }
+
 
   return out;
 }

@@ -15,13 +15,14 @@
 <body>
   <div class="app">
     <header>
-      <h1>The Dimensionator</h1>
+      <h1>The Dimensionator &#127793;</h1>
       <p class="sub">Upload a cropped silo png to get started!</p>
     </header>
 
     <nav class="tabs">
-      <button class="tab active" data-tab="single">Single</button>
-      <button class="tab" data-tab="batch">Batch</button>
+      <button class="tab active" data-tab="single">Single Dimension</button>
+      <button class="tab" data-tab="batch">CSV/Batch</button>
+      <button class="tab" data-tab="4-in-1">Testing Tab</button>
     </nav>
 
     <!-- SINGLE -->
@@ -35,7 +36,7 @@
             
             <div class="file-row">
               <button type="button" id="singleImageBtn" class"file-btn">
-                Choose file
+                Choose file &#128194;
               </button>
               <span id="singleImageName" class="file-name">
                 No file selected
@@ -92,7 +93,7 @@
         </div>
 
         <div class="card">
-          <h2>Preview</h2>
+          <h2>Preview &#128269;</h2>
           <canvas id="preview" width="800" height="800"></canvas>
         </div>
       </div>
@@ -113,7 +114,7 @@
 
             <div class="file-row">
               <button type="button" id="batchFolderBtn" class="file-btn">
-                Choose folder
+                Choose folder &#128194;
               </button>
               <span id="batchFolderName" class="file-name">
                 No folder selected
@@ -153,18 +154,34 @@
         </div>
 
         <div class="card">
-          <h2>Notes</h2>
+          <h2>Notes &#128221;</h2>
           <ul>
-            <li>Batch output is a ZIP containing a timestamped folder (YYYY-MM-DD_HHMMSS).</li>
-            <li>Filename rule strips <code>_SILO</code> or <code>_SILO-2200x2200</code> before appending <code>_DIM.jpg</code>.</li>
-            <li>Alpha-based bounds are used first. White-threshold fallback is used only if image has no transparency.</li>
+            <li>Batch output is a ZIP containing a timestamped folder (YYYY-MM-DD_HHMMSS).<br><br></li>
+            <li>Filename rule strips <code>_SILO</code> or <code>_SILO-2200x2200</code> before appending <code>_DIM.jpg</code>.<br><br></li>
+            <li>Alpha-based bounds are used first. White-threshold fallback is used only if image has no transparency.<br><br></li>
+            <li>Sometimes when you select a folder, it'll say there's one more file selected than what's actually in there. 
+                This is completely fine and is just a browser dependent bug.<br><br></li>
           </ul>
         </div>
       </div>
     </section>
 
-    <footer>
-      <small>runs locally, no uploads. made by devyn :)</small>
+    <section id="4-in-1" class="panel">
+      <header>oh nah</header>
+      <div class="row">
+        <div class="card">
+          <h2>Testersons</h2>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-left">
+        made by devyn &#128027;
+      </div>
+      <div class="footer-right">
+        v0.2
+      </div>
     </footer>
   </div>
 

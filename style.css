@@ -77,7 +77,7 @@ header h1{
 }
 
 .tab{
-  border:1px solid var(--border);
+  border:1px solid var(--primary-weak);
   background:var(--panel);
   color:var(--text);
   padding:10px 14px;
@@ -93,6 +93,7 @@ header h1{
 
 .tab.active{
   border-color:var(--primary);
+  border:3px solid var(--primary);
 }
 
 .panel{display:none;}
@@ -223,9 +224,21 @@ canvas{
   color:#d6e2f2;
 }
 
-footer{
-  margin-top:14px;
-  color:var(--muted);
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* ← key */
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.footer-left {
+  text-align: left;
+}
+
+.footer-right {
+  text-align: right;
 }
 
 code{
