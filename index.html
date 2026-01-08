@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dimensionator</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- JSZip for batch ZIP output -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>The Dimensionator</h1>
+      <p class="sub">Upload a cropped silo png to get started!</p>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="single">Single</button>
+      <button class="tab" data-tab="batch">Batch</button>
+    </nav>
+
+    <!-- SINGLE -->
+    <section id="single" class="panel active">
+      <div class="row">
+        <div class="card">
+          <h2>Inputs</h2>
+
+          <label class="field">
+            <span>Plant Image</span>
+            
+            <div class="file-row">
+              <button type="button" id="singleImageBtn" class"file-btn">
+                Choose file
+              </button>
+              <span id="singleImageName" class="file-name">
+                No file selected
+              </span>
+            </div>
+
+            <input
+              id="singleImage"
+              type="file"
+              accept="image/*"
+              hidden
+            />
+          </label>
+
+          <div class="grid2">
+            <label class="field">
+              <span>Height Label</span>
+              <input id="heightLabel" type="text" placeholder='e.g., 18"-20"' />
+            </label>
+            <label class="field">
+              <span>Width Label</span>
+              <input id="widthLabel" type="text" placeholder='e.g., 20"-22"' />
+            </label>
+          </div>
+
+          <div class="grid2">
+            <label class="field">
+              <span>Output Size (px)</span>
+              <select id="singleSize">
+                <option>1200</option>
+                <option>1600</option>
+                <option selected>2200</option>
+                <option>3000</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Background Detection</span>
+              <select id="bgMode">
+                <option value="auto" selected>Auto (alpha first)</option>
+                <option value="alpha">Alpha only</option>
+                <option value="white">Near-white fallback</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="downloadSingle" disabled>Download JPG</button>
+          </div>
+
+          <p class="hint">
+            Tip: For the best bounds detection, use transparent PNGs (alpha channel).
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>Preview</h2>
+          <canvas id="preview" width="800" height="800"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- BATCH -->
+    <section id="batch" class="panel">
+      <div class="row">
+        <div class="card">
+          <h2>Batch</h2>
+          <p class="hint">
+            Select a folder that contains images + a CSV with headers:
+            <code>input_name,PlantHeight,PlantWidth</code>.
+          </p>
+
+          <label class="field">
+            <span>Folder</span>
+
+            <div class="file-row">
+              <button type="button" id="batchFolderBtn" class="file-btn">
+                Choose folder
+              </button>
+              <span id="batchFolderName" class="file-name">
+                No folder selected
+              </span>
+            </div>
+
+            <input
+              id="batchFolder"
+              type="file"
+              webkitdirectory
+              multiple
+              hidden
+            />
+          </label>
+          <div class="grid2">
+            <label class="field">
+              <span>Output Size (px)</span>
+              <select id="batchSize">
+                <option>1200</option>
+                <option>1600</option>
+                <option selected>2200</option>
+                <option>3000</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>White Threshold (fallback)</span>
+              <input id="whiteThreshold" type="number" min="200" max="255" value="245" />
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="runBatch" class="primary" disabled>Run Batch → Download ZIP</button>
+          </div>
+
+          <div class="log" id="batchLog"></div>
+        </div>
+
+        <div class="card">
+          <h2>Notes</h2>
+          <ul>
+            <li>Batch output is a ZIP containing a timestamped folder (YYYY-MM-DD_HHMMSS).</li>
+            <li>Filename rule strips <code>_SILO</code> or <code>_SILO-2200x2200</code> before appending <code>_DIM.jpg</code>.</li>
+            <li>Alpha-based bounds are used first. White-threshold fallback is used only if image has no transparency.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <small>runs locally, no uploads. made by devyn :)</small>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
