@@ -182,6 +182,7 @@ function timestampFolderName(d = new Date()) {
 function stripSiloSuffix(stem) {
   if (stem.endsWith("_SILO-2200x2200")) return stem.slice(0, -"_SILO-2200x2200".length);
   if (stem.endsWith("_SILO")) return stem.slice(0, -"_SILO".length);
+  if (stem.endsWith("_DIM")) return stem.slice(0, -"_DIM".length);
   return stem;
 }
 
