@@ -14,156 +14,37 @@ tabs.forEach(btn => {
 });
 
 // -----------------------------
+// Config (UI removed; change here)
+// -----------------------------
+const CFG = {
+  DIM_SIZE: 2200,
+  WEB_SIZE: 2200,
+  BG_MODE: "auto",
+  WHITE_THRESHOLD: 245,
+
+  // Visual ratios
+  MARGIN_LEFT_RATIO: 0.16,
+  MARGIN_BOTTOM_RATIO: 0.16,
+  PAD_RATIO: 0.08,
+  LINE_W_RATIO: 0.004,
+
+  // Web/Silo padding
+  WEB_PAD_RATIO: 0.08,
+  SILO_PAD_RATIO: 0.045,
+
+  // Font
+  FONT_SCALE: 0.25
+};
+
+// -----------------------------
 // Utilities
 // -----------------------------
-
 let renderFontReady = null;
-
 function loadRenderFont() {
   if (!renderFontReady) {
     renderFontReady = document.fonts.load('64px "din2014"');
   }
   return renderFontReady;
-}
-
-function computePotCenterXRimBased(imageData, bbox, opts = {}) {
-  const { data, width: w } = imageData;
-
-  const alphaMin = opts.alphaMin ?? 10;
-  const minRunFrac = opts.minRunFrac ?? 0.25; // rim must be wide
-  const colorVarMax = opts.colorVarMax ?? 18;
-
-  const { left, right, bottom, top } = bbox;
-  const bboxW = right - left;
-  const minRun = Math.floor(bboxW * minRunFrac);
-
-  // Scan upward from bottom
-  for (let y = bottom - 1; y >= top; y--) {
-    const rowBase = y * w * 4;
-
-    let runStart = null;
-
-    for (let x = left; x < right; x++) {
-      const idx = rowBase + x * 4;
-      const a = data[idx + 3];
-
-      if (a > alphaMin) {
-        if (runStart === null) runStart = x;
-      } else if (runStart !== null) {
-        const runEnd = x - 1;
-        const runW = runEnd - runStart + 1;
-
-        if (runW >= minRun) {
-          // check color variance across the run
-          let rSum = 0, gSum = 0, bSum = 0;
-          for (let i = runStart; i <= runEnd; i++) {
-            const ii = rowBase + i * 4;
-            rSum += data[ii];
-            gSum += data[ii + 1];
-            bSum += data[ii + 2];
-          }
-          const n = runW;
-          const rAvg = rSum / n, gAvg = gSum / n, bAvg = bSum / n;
-
-          let varSum = 0;
-          for (let i = runStart; i <= runEnd; i++) {
-            const ii = rowBase + i * 4;
-            varSum += Math.abs(data[ii] - rAvg);
-            varSum += Math.abs(data[ii + 1] - gAvg);
-            varSum += Math.abs(data[ii + 2] - bAvg);
-          }
-
-          const colorVar = varSum / (n * 3);
-          if (colorVar <= colorVarMax) {
-            // Found pot rim
-            return (runStart + runEnd) / 2;
-          }
-        }
-
-        runStart = null;
-      }
-    }
-  }
-
-  return null;
-}
-
-
-function computePotCenterXFromBBox(imageData, bbox, opts = {}) {
-  const { data, width: w, height: h } = imageData;
-
-  const alphaMin   = opts.alphaMin ?? 10;
-  const potFrac    = opts.potFrac ?? 0.38;   // bottom ~38% of the plant bbox height
-  const minRunFrac = opts.minRunFrac ?? 0.10; // run must be >= 10% of bbox width
-  const keepRowFrac= opts.keepRowFrac ?? 0.72; // keep rows within 72% of max run
-
-  const left = bbox.left, right = bbox.right, top = bbox.top, bottom = bbox.bottom;
-  const bboxW = Math.max(1, right - left);
-  const bboxH = Math.max(1, bottom - top);
-
-  const yStart = Math.floor(bottom - bboxH * potFrac);
-  const minRun = Math.max(2, Math.floor(bboxW * minRunFrac));
-
-  let globalBestW = 0;
-  const rows = []; // { xMid, runW }
-
-  for (let y = yStart; y < bottom; y++) {
-    const rowBase = y * w * 4;
-
-    let bestW = 0;
-    let bestMid = null;
-
-    let inRun = false;
-    let runStart = 0;
-
-    for (let x = left; x < right; x++) {
-      const a = data[rowBase + x * 4 + 3];
-      const fg = a > alphaMin;
-
-      if (fg && !inRun) {
-        inRun = true;
-        runStart = x;
-      } else if (!fg && inRun) {
-        inRun = false;
-        const runEnd = x - 1;
-        const runW = runEnd - runStart + 1;
-
-        if (runW >= minRun && runW > bestW) {
-          bestW = runW;
-          bestMid = (runStart + runEnd) / 2;
-        }
-      }
-    }
-
-    if (inRun) {
-      const runEnd = right - 1;
-      const runW = runEnd - runStart + 1;
-      if (runW >= minRun && runW > bestW) {
-        bestW = runW;
-        bestMid = (runStart + runEnd) / 2;
-      }
-    }
-
-    if (bestMid != null) {
-      rows.push({ xMid: bestMid, runW: bestW });
-      if (bestW > globalBestW) globalBestW = bestW;
-    }
-  }
-
-  if (!rows.length || globalBestW === 0) return null;
-
-  const keepW = globalBestW * keepRowFrac;
-
-  let sumX = 0, sumW = 0;
-  for (const r of rows) {
-    if (r.runW >= keepW) {
-      sumX += r.xMid * r.runW;
-      sumW += r.runW;
-    }
-  }
-
-  if (sumW === 0) return null;
-  return sumX / sumW; // X in imageData coordinates (0..w)
 }
 
 function debounce(fn, ms = 200) {
@@ -179,19 +60,43 @@ function timestampFolderName(d = new Date()) {
   return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 }
 
-function stripSiloSuffix(stem) {
-  if (stem.endsWith("_SILO-2200x2200")) return stem.slice(0, -"_SILO-2200x2200".length);
-  if (stem.endsWith("_SILO")) return stem.slice(0, -"_SILO".length);
-  if (stem.endsWith("_DIM")) return stem.slice(0, -"_DIM".length);
+function stripSuffixesForDim(stem) {
+  if (stem.endsWith("_SILO-2200x2200")) stem = stem.slice(0, -"_SILO-2200x2200".length);
+  if (stem.endsWith("_SILO")) stem = stem.slice(0, -"_SILO".length);
+  if (stem.endsWith("_DIM")) stem = stem.slice(0, -"_DIM".length);
+  return stem;
+}
+function stripSuffixesForSilo(stem) {
+  if (stem.endsWith("_SILO-2200x2200")) stem = stem.slice(0, -"_SILO-2200x2200".length);
+  if (stem.endsWith("_DIM")) stem = stem.slice(0, -"_DIM".length);
+  // keep _SILO if already there
+  return stem;
+}
+function stripSuffixesForWeb(stem) {
+  if (stem.endsWith("_SILO")) stem = stem.slice(0, -"_SILO".length);
+  if (stem.endsWith("_DIM")) stem = stem.slice(0, -"_DIM".length);
+  // keep _SILO-2200x2200 if already there
   return stem;
 }
 
+function stemFromName(name) {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(0, dot) : name;
+}
+
 function makeDimName(originalName) {
-  // originalName: filename with extension
-  const dot = originalName.lastIndexOf(".");
-  const stem = dot >= 0 ? originalName.slice(0, dot) : originalName;
-  const clean = stripSiloSuffix(stem);
-  return `${clean}_DIM.jpg`;
+  const stem = stripSuffixesForDim(stemFromName(originalName));
+  return `${stem}_DIM.jpg`;
+}
+function makeSiloName(originalName) {
+  let stem = stripSuffixesForSilo(stemFromName(originalName));
+  if (!stem.endsWith("_SILO")) stem = `${stem}_SILO`;
+  return `${stem}.jpg`;
+}
+function makeWebName(originalName) {
+  let stem = stripSuffixesForWeb(stemFromName(originalName));
+  if (!stem.endsWith("_SILO-2200x2200")) stem = `${stem}_SILO-2200x2200`;
+  return `${stem}.jpg`;
 }
 
 function loadImageFromFile(file) {
@@ -209,7 +114,7 @@ function canvasToJpegBlob(canvas, quality = 1) {
   });
 }
 
-// Simple CSV parsing with quoted fields support (enough for typical cases)
+// Simple CSV parsing with quoted fields support
 function parseCSV(text) {
   const rows = [];
   let i = 0, field = "", row = [], inQuotes = false;
@@ -234,7 +139,6 @@ function parseCSV(text) {
       field += c; i++; continue;
     }
   }
-  // final
   pushField();
   if (row.length > 1 || row[0] !== "") pushRow();
 
@@ -248,12 +152,9 @@ function parseCSV(text) {
     });
 }
 
-
-
 // -----------------------------
 // Foreground bounding box
 // -----------------------------
-// Returns {left, top, right, bottom} in image coordinates
 function foregroundBBoxFromImageData(imageData, mode, whiteThreshold) {
   const { data, width, height } = imageData;
 
@@ -276,7 +177,6 @@ function foregroundBBoxFromImageData(imageData, mode, whiteThreshold) {
       if (useAlpha) {
         fg = a > 10;
       } else if (useWhite) {
-        // foreground if NOT near-white
         fg = !(r >= whiteThreshold && g >= whiteThreshold && b >= whiteThreshold);
       }
 
@@ -289,29 +189,145 @@ function foregroundBBoxFromImageData(imageData, mode, whiteThreshold) {
     }
   }
 
-  if (maxX < 0) {
-    // nothing found
-    return null;
-  }
-
-  // right/bottom are exclusive for convenience
+  if (maxX < 0) return null;
   return { left: minX, top: minY, right: maxX + 1, bottom: maxY + 1 };
 }
 
 // -----------------------------
-// Rendering
+// Pot center (rim-based)
 // -----------------------------
-function renderComposite({
-  sourceImg,                 // HTMLImageElement
-  heightLabel,
-  widthLabel,
-  outSize,
-  bgMode = "auto",
-  whiteThreshold = 245
-}) {
-  const target = outSize;
+function computePotCenterXRimBased(imageData, bbox, opts = {}) {
+  const { data, width: w } = imageData;
 
-  // Create output canvas
+  const alphaMin = opts.alphaMin ?? 10;
+  const minRunFrac = opts.minRunFrac ?? 0.25;
+  const colorVarMax = opts.colorVarMax ?? 18;
+
+  const { left, right, bottom, top } = bbox;
+  const bboxW = right - left;
+  const minRun = Math.floor(bboxW * minRunFrac);
+
+  for (let y = bottom - 1; y >= top; y--) {
+    const rowBase = y * w * 4;
+    let runStart = null;
+
+    for (let x = left; x < right; x++) {
+      const idx = rowBase + x * 4;
+      const a = data[idx + 3];
+
+      if (a > alphaMin) {
+        if (runStart === null) runStart = x;
+      } else if (runStart !== null) {
+        const runEnd = x - 1;
+        const runW = runEnd - runStart + 1;
+
+        if (runW >= minRun) {
+          let rSum = 0, gSum = 0, bSum = 0;
+          for (let i = runStart; i <= runEnd; i++) {
+            const ii = rowBase + i * 4;
+            rSum += data[ii];
+            gSum += data[ii + 1];
+            bSum += data[ii + 2];
+          }
+          const n = runW;
+          const rAvg = rSum / n, gAvg = gSum / n, bAvg = bSum / n;
+
+          let varSum = 0;
+          for (let i = runStart; i <= runEnd; i++) {
+            const ii = rowBase + i * 4;
+            varSum += Math.abs(data[ii] - rAvg);
+            varSum += Math.abs(data[ii + 1] - gAvg);
+            varSum += Math.abs(data[ii + 2] - bAvg);
+          }
+
+          const colorVar = varSum / (n * 3);
+          if (colorVar <= colorVarMax) {
+            return (runStart + runEnd) / 2;
+          }
+        }
+
+        runStart = null;
+      }
+    }
+  }
+
+  return null;
+}
+
+// -----------------------------
+// Shared: pot-centered placement + bbox analysis
+// -----------------------------
+function analyzeResized(sourceImg, newW, newH, bgMode, whiteThreshold) {
+  const c = document.createElement("canvas");
+  c.width = newW;
+  c.height = newH;
+  const cctx = c.getContext("2d", { willReadFrequently: true });
+  cctx.clearRect(0, 0, newW, newH);
+  cctx.drawImage(sourceImg, 0, 0, newW, newH);
+
+  const imgData = cctx.getImageData(0, 0, newW, newH);
+  let bbox = foregroundBBoxFromImageData(imgData, bgMode, whiteThreshold);
+  if (!bbox) bbox = { left: 0, top: 0, right: newW, bottom: newH };
+
+  let potCenterX = computePotCenterXRimBased(imgData, bbox, {
+    alphaMin: 10,
+    minRunFrac: 0.25,
+    colorVarMax: 18
+  });
+  if (potCenterX == null) potCenterX = newW / 2;
+
+  return { bbox, potCenterX };
+}
+
+function fitAndPlacePotCentered({
+  sourceImg,
+  targetW,
+  targetH,
+  pad,
+  bgMode,
+  whiteThreshold
+}) {
+  // Fit image into inner box, then compute pot center on resized, then place pot-centered
+  const maxW = Math.max(1, targetW - 2 * pad);
+  const maxH = Math.max(1, targetH - 2 * pad);
+
+  let scale = Math.min(maxW / sourceImg.width, maxH / sourceImg.height);
+  let newW = Math.max(1, Math.floor(sourceImg.width * scale));
+  let newH = Math.max(1, Math.floor(sourceImg.height * scale));
+
+  const halfX = targetW / 2;
+
+  let bbox = null;
+  let potCenterX = newW / 2;
+
+  for (let iter = 0; iter < 6; iter++) {
+    const a = analyzeResized(sourceImg, newW, newH, bgMode, whiteThreshold);
+    bbox = a.bbox;
+    potCenterX = a.potCenterX;
+
+    const x0Ideal = Math.floor(halfX - potCenterX);
+    if (x0Ideal >= pad && x0Ideal <= targetW - pad - newW) break;
+
+    // shrink and retry if it can't be placed with padding
+    scale *= 0.92;
+    newW = Math.max(1, Math.floor(sourceImg.width * scale));
+    newH = Math.max(1, Math.floor(sourceImg.height * scale));
+  }
+
+  const x0Ideal = Math.floor(halfX - potCenterX);
+  const x0 = Math.max(pad, Math.min(x0Ideal, targetW - pad - newW));
+  const y0 = Math.max(pad, Math.min(Math.floor((targetH - newH) / 2), targetH - pad - newH));
+
+  return { newW, newH, x0, y0, bbox, potCenterX };
+}
+
+// -----------------------------
+// Renderers
+// -----------------------------
+function renderDim({ sourceImg, heightLabel = "", widthLabel = "" }) {
+  const target = CFG.DIM_SIZE;
+
+  // Output canvas
   const out = document.createElement("canvas");
   out.width = target;
   out.height = target;
@@ -321,136 +337,140 @@ function renderComposite({
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, target, target);
 
-  // Style ratios (match your Python defaults)
-  const marginLeft = Math.floor(target * 0.16);
-  const marginBottom = Math.floor(target * 0.16);
-  const pad = Math.floor(target * 0.08);
-  const lineW = Math.max(2, Math.floor(target * 0.004));
-  const labelGap = Math.floor(target * 0.018);
+  // Layout (same vibe as the original working version)
+  const marginLeft = Math.floor(target * CFG.MARGIN_LEFT_RATIO);
+  const marginBottom = Math.floor(target * CFG.MARGIN_BOTTOM_RATIO);
 
-  const FONT_SCALE = 0.25; // ← tweak this number for font size
-  const fontSize = Math.max(32, Math.floor(marginBottom * FONT_SCALE));
+  // Slightly tighter inner padding just for DIM to "zoom in"
+  const pad = Math.floor(target * (CFG.PAD_RATIO * 0.15));
 
-  // Fit plant into (target - margins) area for scale
+  const lineW = Math.max(2, Math.floor(target * CFG.LINE_W_RATIO));
+  const fontSize = Math.max(32, Math.floor(marginBottom * CFG.FONT_SCALE));
+
+  // The area the plant must fit into (reserving left and bottom zones)
   const plantAreaW = target - marginLeft;
   const plantAreaH = target - marginBottom;
+
   const maxW = Math.max(1, plantAreaW - 2 * pad);
   const maxH = Math.max(1, plantAreaH - 2 * pad);
 
+  // Base scale to fit (will shrink further if centered placement would violate constraints)
   let scale = Math.min(maxW / sourceImg.width, maxH / sourceImg.height);
-  let newW = Math.max(1, Math.floor(sourceImg.width * scale));
-  let newH = Math.max(1, Math.floor(sourceImg.height * scale));
+  let newW = 1, newH = 1;
 
-  const half = target / 2;
+  // We'll compute bbox + potCenterX at the final chosen scale
+  let bbox = null;
+  let potCenterX = null;
 
-  function buildAnalysisCanvas() {
-    const c = document.createElement("canvas");
-    c.width = newW;
-    c.height = newH;
-    const cctx = c.getContext("2d", { willReadFrequently: true });
-    cctx.clearRect(0, 0, newW, newH);
-    cctx.drawImage(sourceImg, 0, 0, newW, newH);
-    return { c, cctx };
-  }
+  function analyzeAtSize(w, h) {
+    const ac = document.createElement("canvas");
+    ac.width = w;
+    ac.height = h;
+    const actx = ac.getContext("2d", { willReadFrequently: true });
 
-  let plantC, pctx, imgData, bbox, potCenterX;
+    actx.clearRect(0, 0, w, h);
+    actx.drawImage(sourceImg, 0, 0, w, h);
 
-  for (let iter = 0; iter < 5; iter++) {
-    ({ c: plantC, cctx: pctx } = buildAnalysisCanvas());
+    const imgData = actx.getImageData(0, 0, w, h);
+    let bb = foregroundBBoxFromImageData(imgData, CFG.BG_MODE, CFG.WHITE_THRESHOLD);
+    if (!bb) bb = { left: 0, top: 0, right: w, bottom: h };
 
-    imgData = pctx.getImageData(0, 0, newW, newH);
-    bbox = foregroundBBoxFromImageData(imgData, bgMode, whiteThreshold);
-
-    // fallback bbox = whole image if nothing found
-    if (!bbox) bbox = { left: 0, top: 0, right: newW, bottom: newH };
-
-    potCenterX = computePotCenterXRimBased(imgData, bbox, {
+    let pcx = computePotCenterXRimBased(imgData, bb, {
       alphaMin: 10,
       minRunFrac: 0.25,
       colorVarMax: 18
     });
+    if (pcx == null) pcx = w / 2;
 
-
-    if (potCenterX == null) potCenterX = newW / 2;
-
-    const x0Ideal = Math.floor(half - potCenterX);
-
-    // If it fits with padding, we’re done
-    if (x0Ideal >= pad && x0Ideal <= target - pad - newW) {
-      break;
-    }
-
-    // Otherwise scale down a bit and try again
-    // (keep aspect ratio, preserve pot-centered intent)
-    const shrink = 0.92; // gentle shrink per iteration
-    scale *= shrink;
-    newW = Math.max(1, Math.floor(sourceImg.width * scale));
-    newH = Math.max(1, Math.floor(sourceImg.height * scale));
+    return { bb, pcx };
   }
 
-  // Now place pot-centered (with final safety clamp)
-  const x0Ideal = Math.floor(half - potCenterX);
-  const x0 = Math.max(pad, Math.min(x0Ideal, target - pad - newW));
-  const y0 = Math.max(pad, Math.min(Math.floor((target - newH) / 2), target - pad - newH));
+  const halfX = target / 2;
+  const halfY = target / 2;
 
+  // Constraints: keep plant out of left/bottom zones, but maintain "centered" composition
+  const minX0_base = marginLeft + pad;
+  const minY0_base = pad;
+
+  // Key behavior: if ideal centered placement doesn't fit, shrink slightly and retry
+  for (let iter = 0; iter < 7; iter++) {
+    newW = Math.max(1, Math.floor(sourceImg.width * scale));
+    newH = Math.max(1, Math.floor(sourceImg.height * scale));
+
+    const analysis = analyzeAtSize(newW, newH);
+    bbox = analysis.bb;
+    potCenterX = analysis.pcx;
+
+    // Ideal placement:
+    // - X centered by pot axis
+    // - Y centered by whole image height
+    const x0Ideal = Math.floor(halfX - potCenterX);
+    const y0Ideal = Math.floor(halfY - newH / 2);
+
+    const maxX0 = target - pad - newW;
+    const maxY0 = target - marginBottom - pad - newH;
+
+    const xFits = x0Ideal >= minX0_base && x0Ideal <= maxX0;
+    const yFits = y0Ideal >= minY0_base && y0Ideal <= maxY0;
+
+    if (xFits && yFits) break;
+
+    // Shrink a touch and try again (prevents "top-right drift")
+    scale *= 0.92;
+  }
+
+  // Final placement (safety clamp)
+  const x0Ideal = Math.floor(halfX - potCenterX);
+  const y0Ideal = Math.floor(halfY - newH / 2);
+
+  const minX0 = marginLeft + pad;
+  const maxX0 = target - pad - newW;
+
+  const minY0 = pad;
+  const maxY0 = target - marginBottom - pad - newH;
+
+  const x0 = Math.max(minX0, Math.min(x0Ideal, maxX0));
+  const y0 = Math.max(minY0, Math.min(y0Ideal, maxY0));
+
+  // Draw plant
   ctx.drawImage(sourceImg, x0, y0, newW, newH);
 
-  // DEBUG: visualize computed pot center
-  //ctx.save();
-  //ctx.strokeStyle = "red";
-  //ctx.lineWidth = 2;
-  //ctx.beginPath();
-  //ctx.moveTo(x0 + potCenterX, 0);
-  //ctx.lineTo(x0 + potCenterX, target);
-  //ctx.stroke();
-  //ctx.restore();
-
-
-
-  // Use the bbox we computed in the loop
-  let left = bbox.left, top = bbox.top, right = bbox.right, bottom = bbox.bottom;
-
-  if (bbox) ({ left, top, right, bottom } = bbox);
-
-
-  // Translate bbox into output coordinates
-  const plantLeft = x0 + left;
-  const plantTop = y0 + top;
-  const plantRight = x0 + right;
-  const plantBottom = y0 + bottom;
+  // Use bbox (foreground pixels) to set line extents
+  const plantLeft = x0 + bbox.left;
+  const plantTop = y0 + bbox.top;
+  const plantRight = x0 + bbox.right;
+  const plantBottom = y0 + bbox.bottom;
 
   const edgePad = Math.max(2, Math.floor(target * 0.005));
 
-  // Dimension extents based on foreground pixels
   const vyTop = plantTop + edgePad;
   const vyBot = plantBottom - edgePad;
   const hxLeft = plantLeft + edgePad;
   const hxRight = plantRight - edgePad;
 
-  // Draw annotations (overlay last conceptually; here we just draw after plant)
+  // Annotation style
   ctx.lineWidth = lineW;
   ctx.strokeStyle = "rgb(120,120,120)";
   ctx.fillStyle = "rgb(0,0,0)";
   ctx.font = `${fontSize}px din2014, sans-serif`;
   ctx.textBaseline = "top";
 
-  // Left vertical dimension line X
-  let vx = Math.floor(marginLeft / 2);
+  // Fixed vertical line X (does not move with label)
+  const vx = Math.floor(marginLeft / 2);
 
-  // Height label: horizontal, centered on line; ensure label isn't clipped
-  if (heightLabel && heightLabel.trim().length > 0) {
-    const textW = ctx.measureText(heightLabel).width;
+  // ----- Height (left) -----
+  const hLabel = (heightLabel || "").trim();
+  if (hLabel.length > 0) {
+    const textW = ctx.measureText(hLabel).width;
     const th = fontSize;
     const padding = Math.max(6, Math.floor(th / 3));
     const clearance = Math.floor(th * 0.75);
 
     const cy = Math.floor((vyTop + vyBot) / 2);
-
     const tx = Math.floor(vx - textW / 2);
     const ty = Math.floor(cy - th / 2);
 
-
-    // split line around the label (line position stays vx)
+    // split line around the label (line stays fixed at vx)
     const topEnd = ty - clearance;
     const botStart = ty + th + clearance;
 
@@ -469,46 +489,41 @@ function renderComposite({
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(tx - padding, ty - padding, textW + 2 * padding, th + 2 * padding);
     ctx.fillStyle = "#000000";
-    ctx.fillText(heightLabel, tx, ty);
-
+    ctx.fillText(hLabel, tx, ty);
   } else {
-    // No label: full line stays fixed
+    // no label: full line
     ctx.beginPath();
     ctx.moveTo(vx, vyTop);
     ctx.lineTo(vx, vyBot);
     ctx.stroke();
   }
 
-  // Bottom horizontal dimension line + label (anchored to pot center axis)
+  // ----- Width (bottom) -----
   const hy = target - Math.floor(marginBottom / 2);
   const potAxisX = Math.floor(x0 + potCenterX);
 
-  if (widthLabel && widthLabel.trim().length > 0) {
-    const label = widthLabel.trim();
-    const textW = ctx.measureText(label).width;
+  const wLabel = (widthLabel || "").trim();
+  if (wLabel.length > 0) {
+    const textW = ctx.measureText(wLabel).width;
     const th = fontSize;
     const padding = Math.max(6, Math.floor(th / 4));
 
-    // Center the TEXT on the pot axis
+    // center label on pot axis
     let tx = Math.floor(potAxisX - textW / 2);
     const ty = Math.floor(hy - th / 2);
 
-    // Knockout rect bounds
+    // label box
     const boxL = tx - padding;
     const boxR = tx + textW + padding;
 
-    // Keep the label box from going outside the dimension span
-    // If it would, clamp tx and shift box accordingly.
-    if (boxL < hxLeft) {
-      tx += (hxLeft - boxL);
-    } else if (boxR > hxRight) {
-      tx -= (boxR - hxRight);
-    }
+    // keep label box within the line extents
+    if (boxL < hxLeft) tx += (hxLeft - boxL);
+    else if (boxR > hxRight) tx -= (boxR - hxRight);
 
     const adjBoxL = tx - padding;
     const adjBoxR = tx + textW + padding;
 
-    // Draw the line in two segments, leaving a gap under the label box
+    // line segments with gap under label
     ctx.beginPath();
     if (adjBoxL > hxLeft) {
       ctx.moveTo(hxLeft, hy);
@@ -520,175 +535,395 @@ function renderComposite({
     }
     ctx.stroke();
 
-    // Draw knockout + text
+    // knockout + text
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(adjBoxL, ty - padding, (adjBoxR - adjBoxL), th + 2 * padding);
     ctx.fillStyle = "#000000";
-    ctx.fillText(label, tx, ty);
-
+    ctx.fillText(wLabel, tx, ty);
   } else {
-    // No label: draw full line
+    // no label: full line
     ctx.beginPath();
     ctx.moveTo(hxLeft, hy);
     ctx.lineTo(hxRight, hy);
     ctx.stroke();
   }
 
+  return out;
+}
+
+
+
+function renderWeb({ sourceImg }) {
+  const target = CFG.WEB_SIZE;
+
+  // Analyze at native resolution to use plant pixels (bbox)
+  const c = document.createElement("canvas");
+  c.width = sourceImg.width;
+  c.height = sourceImg.height;
+  const cctx = c.getContext("2d", { willReadFrequently: true });
+  cctx.clearRect(0, 0, c.width, c.height);
+  cctx.drawImage(sourceImg, 0, 0);
+
+  const imgData = cctx.getImageData(0, 0, c.width, c.height);
+
+  // Foreground bbox from PLANT pixels
+  let bbox = foregroundBBoxFromImageData(imgData, CFG.BG_MODE, CFG.WHITE_THRESHOLD);
+  if (!bbox) bbox = { left: 0, top: 0, right: c.width, bottom: c.height };
+
+  // Pot center from POT pixels (rim-based)
+  let potCenterX = computePotCenterXRimBased(imgData, bbox, {
+    alphaMin: 10,
+    minRunFrac: 0.25,
+    colorVarMax: 18
+  });
+  if (potCenterX == null) potCenterX = (bbox.left + bbox.right) / 2;
+
+  // Plant pixel dimensions (bbox)
+  const plantW = Math.max(1, bbox.right - bbox.left);
+  const plantH = Math.max(1, bbox.bottom - bbox.top);
+
+  // Padding computed from PLANT pixels, clamped
+  // Tune these to taste
+  const PAD_RATIO = 0.22; // higher than silo so web has more breathing room
+  const PAD_MIN = 70;
+  const PAD_MAX = 200;
+
+  const pad = Math.max(
+    PAD_MIN,
+    Math.min(PAD_MAX, Math.floor(Math.max(plantW, plantH) * PAD_RATIO))
+  );
+
+  // We fit the entire image into 2200x2200, but we "respect" bbox+pad
+  // by scaling so bbox fits inside (target - 2*pad)
+  const innerW = Math.max(1, target - 2 * pad);
+  const innerH = Math.max(1, target - 2 * pad);
+
+  // Scale based on bbox size (plant pixels), not full image size
+  const scale = Math.min(innerW / plantW, innerH / plantH);
+
+  const newW = Math.max(1, Math.floor(sourceImg.width * scale));
+  const newH = Math.max(1, Math.floor(sourceImg.height * scale));
+
+  // Scaled bbox + pot center
+  const sLeft = bbox.left * scale;
+  const sTop = bbox.top * scale;
+  const sRight = bbox.right * scale;
+  const sBottom = bbox.bottom * scale;
+  const sPotCenterX = potCenterX * scale;
+
+  // Target canvas
+  const out = document.createElement("canvas");
+  out.width = target;
+  out.height = target;
+  const ctx = out.getContext("2d");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, target, target);
+
+  // Place so pot center aligns to canvas center
+  const half = target / 2;
+  const x0Ideal = Math.floor(half - sPotCenterX);
+
+  // Vertically center by bbox center
+  const bboxCenterY = (sTop + sBottom) / 2;
+  const y0Ideal = Math.floor(half - bboxCenterY);
+
+  // Clamp so bbox stays inside padded area
+  const minX0 = pad - sLeft;
+  const maxX0 = target - pad - sRight;
+  const minY0 = pad - sTop;
+  const maxY0 = target - pad - sBottom;
+
+  const x0 = Math.max(minX0, Math.min(x0Ideal, maxX0));
+  const y0 = Math.max(minY0, Math.min(y0Ideal, maxY0));
+
+  ctx.drawImage(sourceImg, x0, y0, newW, newH);
+
+  return out;
+}
+
+function renderSilo57({ sourceImg }) {
+  const aspectW = 5, aspectH = 7;
+
+  // Analyze at native resolution to use plant pixels (not full image)
+  const c = document.createElement("canvas");
+  c.width = sourceImg.width;
+  c.height = sourceImg.height;
+  const cctx = c.getContext("2d", { willReadFrequently: true });
+  cctx.clearRect(0, 0, c.width, c.height);
+  cctx.drawImage(sourceImg, 0, 0);
+
+  const imgData = cctx.getImageData(0, 0, c.width, c.height);
+
+  // Foreground bbox from PLANT pixels
+  let bbox = foregroundBBoxFromImageData(imgData, CFG.BG_MODE, CFG.WHITE_THRESHOLD);
+  if (!bbox) bbox = { left: 0, top: 0, right: c.width, bottom: c.height };
+
+  // Pot center from POT pixels (rim-based), restricted to bbox region
+  let potCenterX = computePotCenterXRimBased(imgData, bbox, {
+    alphaMin: 10,
+    minRunFrac: 0.25,
+    colorVarMax: 18
+  });
+  if (potCenterX == null) potCenterX = (bbox.left + bbox.right) / 2;
+
+  // Plant pixel dimensions
+  const plantW = Math.max(1, bbox.right - bbox.left);
+  const plantH = Math.max(1, bbox.bottom - bbox.top);
+
+  // Padding computed from PLANT pixels (not image size)
+  // Tune these as needed:
+  const PAD_RATIO = 0.22; // smaller = tighter margins
+  const PAD_MIN = 40;
+  const PAD_MAX = 300;
+
+  const basePad = Math.max(
+    PAD_MIN,
+    Math.min(PAD_MAX, Math.floor(Math.max(plantW, plantH) * PAD_RATIO))
+  );
+
+  // Start with a canvas that fits plant bbox + padding
+  let targetW = plantW + 2 * basePad;
+  let targetH = plantH + 2 * basePad;
+
+  // Enforce 5:7 by expanding the limiting dimension (never shrink plant)
+  const desiredAspect = aspectW / aspectH;
+  const currentAspect = targetW / targetH;
+
+  if (currentAspect > desiredAspect) {
+    // too wide -> increase height
+    targetH = Math.ceil(targetW / desiredAspect);
+  } else {
+    // too tall -> increase width
+    targetW = Math.ceil(targetH * desiredAspect);
+  }
+
+  // Render final canvas
+  const out = document.createElement("canvas");
+  out.width = targetW;
+  out.height = targetH;
+  const ctx = out.getContext("2d");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, targetW, targetH);
+
+  // Place the source image so that:
+  // - potCenterX is centered on the canvas
+  // - plant bbox is vertically centered (using bbox center)
+  const halfX = targetW / 2;
+  const plantCenterY = (bbox.top + bbox.bottom) / 2;
+  const halfY = targetH / 2;
+
+  const x0Ideal = Math.floor(halfX - potCenterX);
+  const y0Ideal = Math.floor(halfY - plantCenterY);
+
+  // Clamp to keep bbox + padding inside canvas
+  // (so plant never touches edges even if pot center is near edge)
+  const minX0 = basePad - bbox.left;
+  const maxX0 = targetW - basePad - bbox.right;
+  const minY0 = basePad - bbox.top;
+  const maxY0 = targetH - basePad - bbox.bottom;
+
+  const x0 = Math.max(minX0, Math.min(x0Ideal, maxX0));
+  const y0 = Math.max(minY0, Math.min(y0Ideal, maxY0));
+
+  ctx.drawImage(sourceImg, x0, y0);
 
   return out;
 }
 
 // -----------------------------
-// Single mode
+// Download helpers
+// -----------------------------
+async function downloadBlob(blob, filename) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function maybeDownloadSingleOrZip(outputs, zipBaseName) {
+  // outputs: [{ name, canvas }]
+  if (outputs.length === 0) return;
+
+  if (outputs.length === 1) {
+    const blob = await canvasToJpegBlob(outputs[0].canvas, 1.0);
+    await downloadBlob(blob, outputs[0].name);
+    return;
+  }
+
+  const zip = new JSZip();
+  for (const o of outputs) {
+    const blob = await canvasToJpegBlob(o.canvas, 1.0);
+    zip.file(o.name, blob);
+  }
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+  await downloadBlob(zipBlob, zipBaseName);
+}
+
+// -----------------------------
+// Single mode wiring
 // -----------------------------
 const singleImage = document.getElementById("singleImage");
-const heightLabelEl = document.getElementById("heightLabel");
-const widthLabelEl = document.getElementById("widthLabel");
-const singleSize = document.getElementById("singleSize");
-const bgMode = document.getElementById("bgMode");
-
 const singleImageBtn = document.getElementById("singleImageBtn");
 const singleImageName = document.getElementById("singleImageName");
 
+const singleOutSilo = document.getElementById("singleOutSilo");
+const singleOutWeb = document.getElementById("singleOutWeb");
+const singleOutDim = document.getElementById("singleOutDim");
+const dimInputsSingle = document.getElementById("dimInputsSingle");
+
+const heightLabelEl = document.getElementById("heightLabel");
+const widthLabelEl = document.getElementById("widthLabel");
+
 const preview = document.getElementById("preview");
 const pctx = preview.getContext("2d");
-
 const downloadSingleBtn = document.getElementById("downloadSingle");
 
 let singleFile = null;
-let lastSingleCanvas = null;
+let singleImgEl = null;
+let singleImgUrl = null;
+let lastPreviewCanvas = null;
 
-singleImage.addEventListener("change", () => {
-  singleFile = singleImage.files?.[0] || null;
+function updateDimInputsVisibility() {
+  dimInputsSingle.classList.toggle("hidden", !singleOutDim.checked);
+}
 
-  singleImageName.textContent = singleFile
-  ? singleFile.name
-  : "No file selected";
+function selectedSingleTypes() {
+  return {
+    silo: singleOutSilo.checked,
+    web: singleOutWeb.checked,
+    dim: singleOutDim.checked
+  };
+}
 
-  // reset cached image + UI
-  singleImgEl = null;
-  singleImgUrl = null;
-  lastSingleCanvas = null;
-
-  downloadSingleBtn.disabled = true;
-  downloadSingleBtn.classList.remove("Primary");
-
-  renderSingleNow();
-});
-
-singleImageBtn.addEventListener("click", () => {
-  singleImage.click();
-});
-
-let singleImgEl = null;          // cached decoded image element
-let singleImgUrl = null;         // for object URL cleanup
-
-async function renderSingleNow() {
+async function renderPreviewNow() {
   if (!singleFile) {
-    // Clear preview if no file
     pctx.clearRect(0, 0, preview.width, preview.height);
     downloadSingleBtn.disabled = true;
     downloadSingleBtn.classList.remove("primary");
+    lastPreviewCanvas = null;
     return;
   }
 
   await loadRenderFont();
 
-  // Load image once per file selection
   if (!singleImgEl) {
-    try {
-      // Use object URL and cache the decoded image
-      singleImgUrl = URL.createObjectURL(singleFile);
-      const img = new Image();
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = singleImgUrl;
-      });
-      singleImgEl = img;
-    } catch (e) {
-      alert("Could not load image.");
-      downloadSingleBtn.disabled = true;
-      return;
-    }
+    if (singleImgUrl) URL.revokeObjectURL(singleImgUrl);
+    singleImgUrl = URL.createObjectURL(singleFile);
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = singleImgUrl;
+    });
+    singleImgEl = img;
   }
 
-  const outSize = parseInt(singleSize.value, 10);
-  const canvas = renderComposite({
-    sourceImg: singleImgEl,
-    heightLabel: heightLabelEl.value.trim(),
-    widthLabel: widthLabelEl.value.trim(),
-    outSize,
-    bgMode: bgMode.value,
-    whiteThreshold: 245
-  });
+  const types = selectedSingleTypes();
+  // Preview priority: DIM > WEB > SILO
+  let canvas = null;
+  if (types.dim) {
+    canvas = renderDim({
+      sourceImg: singleImgEl,
+      heightLabel: heightLabelEl.value.trim(),
+      widthLabel: widthLabelEl.value.trim()
+    });
+  } else if (types.web) {
+    canvas = renderWeb({ sourceImg: singleImgEl });
+  } else if (types.silo) {
+    canvas = renderSilo57({ sourceImg: singleImgEl });
+  }
 
-  lastSingleCanvas = canvas;
+  lastPreviewCanvas = canvas;
 
-  // Draw to preview canvas
-  preview.width = canvas.width;
-  preview.height = canvas.height;
-  pctx.clearRect(0, 0, preview.width, preview.height);
-  pctx.drawImage(canvas, 0, 0);
+  if (canvas) {
+    preview.width = canvas.width;
+    preview.height = canvas.height;
+    pctx.clearRect(0, 0, preview.width, preview.height);
+    pctx.drawImage(canvas, 0, 0);
 
-  downloadSingleBtn.disabled = false;
-  downloadSingleBtn.classList.add("primary");
+    downloadSingleBtn.disabled = false;
+    downloadSingleBtn.classList.add("primary");
+  } else {
+    pctx.clearRect(0, 0, preview.width, preview.height);
+    downloadSingleBtn.disabled = true;
+    downloadSingleBtn.classList.remove("primary");
+  }
 }
 
-const renderSingleDebounced = debounce(renderSingleNow, 200);
+const renderPreviewDebounced = debounce(renderPreviewNow, 200);
 
-// File upload -> load & render immediately
+singleImageBtn.addEventListener("click", () => singleImage.click());
+
 singleImage.addEventListener("change", () => {
-  // Cleanup prior object URL
   if (singleImgUrl) URL.revokeObjectURL(singleImgUrl);
 
   singleFile = singleImage.files?.[0] || null;
   singleImgEl = null;
   singleImgUrl = null;
-  lastSingleCanvas = null;
+
+  singleImageName.textContent = singleFile ? singleFile.name : "No file selected";
 
   downloadSingleBtn.disabled = true;
   downloadSingleBtn.classList.remove("primary");
 
-  renderSingleNow();
+  renderPreviewNow();
 });
 
-// Any input change -> re-render (debounced for typing)
-heightLabelEl.addEventListener("input", renderSingleDebounced);
-widthLabelEl.addEventListener("input", renderSingleDebounced);
-singleSize.addEventListener("change", renderSingleNow);
-bgMode.addEventListener("change", renderSingleNow);
+[singleOutSilo, singleOutWeb, singleOutDim].forEach(cb => {
+  cb.addEventListener("change", () => {
+    updateDimInputsVisibility();
+    renderPreviewNow();
+  });
+});
 
+heightLabelEl.addEventListener("input", renderPreviewDebounced);
+widthLabelEl.addEventListener("input", renderPreviewDebounced);
 
+updateDimInputsVisibility();
 
 downloadSingleBtn.addEventListener("click", async () => {
-  if (!lastSingleCanvas || !singleFile) return;
+  if (!singleFile || !singleImgEl) return;
 
-  const blob = await canvasToJpegBlob(lastSingleCanvas, 0.95);
-  const name = makeDimName(singleFile.name);
+  const types = selectedSingleTypes();
+  const outputs = [];
 
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  if (types.silo) {
+    outputs.push({ name: makeSiloName(singleFile.name), canvas: renderSilo57({ sourceImg: singleImgEl }) });
+  }
+  if (types.web) {
+    outputs.push({ name: makeWebName(singleFile.name), canvas: renderWeb({ sourceImg: singleImgEl }) });
+  }
+  if (types.dim) {
+    outputs.push({
+      name: makeDimName(singleFile.name),
+      canvas: renderDim({
+        sourceImg: singleImgEl,
+        heightLabel: heightLabelEl.value.trim(),
+        widthLabel: widthLabelEl.value.trim()
+      })
+    });
+  }
+
+  const zipName = `${stripSuffixesForDim(stemFromName(singleFile.name))}_EXPORT.zip`;
+  await maybeDownloadSingleOrZip(outputs, zipName);
 });
 
 // -----------------------------
-// Batch mode
+// Batch mode wiring
 // -----------------------------
 const batchFolderBtn = document.getElementById("batchFolderBtn");
 const batchFolderName = document.getElementById("batchFolderName");
-
 const batchFolder = document.getElementById("batchFolder");
-const batchSize = document.getElementById("batchSize");
-const whiteThresholdEl = document.getElementById("whiteThreshold");
+
+const batchOutSilo = document.getElementById("batchOutSilo");
+const batchOutWeb = document.getElementById("batchOutWeb");
+const batchOutDim = document.getElementById("batchOutDim");
+
 const runBatchBtn = document.getElementById("runBatch");
 const batchLog = document.getElementById("batchLog");
-
-batchFolderBtn.addEventListener("click", () => {
-  batchFolder.click();
-});
 
 let batchFiles = [];
 
@@ -697,28 +932,55 @@ function log(msg) {
   batchLog.scrollTop = batchLog.scrollHeight;
 }
 
+function selectedBatchTypes() {
+  return {
+    silo: batchOutSilo.checked,
+    web: batchOutWeb.checked,
+    dim: batchOutDim.checked
+  };
+}
+
+function refreshBatchRunState() {
+  const types = selectedBatchTypes();
+  const anyType = types.silo || types.web || types.dim;
+
+  if (!batchFiles.length || !anyType) {
+    runBatchBtn.disabled = true;
+    return;
+  }
+
+  if (types.dim) {
+    const hasCsv = batchFiles.some(f => f.name.toLowerCase().endsWith(".csv"));
+    runBatchBtn.disabled = !hasCsv;
+  } else {
+    runBatchBtn.disabled = false;
+  }
+}
+
+batchFolderBtn.addEventListener("click", () => batchFolder.click());
+
 batchFolder.addEventListener("change", () => {
   batchFiles = Array.from(batchFolder.files || []);
   batchLog.textContent = "";
 
-  // Update label text
   if (batchFiles.length > 0) {
-    // Try to infer folder name from first file path
     const firstPath = batchFiles[0].webkitRelativePath || "";
     const folderName = firstPath.split("/")[0] || "Folder selected";
     batchFolderName.textContent = `${folderName} (${batchFiles.length} files)`;
-
     batchFolderBtn.classList.add("primary");
   } else {
     batchFolderName.textContent = "No folder selected";
     batchFolderBtn.classList.remove("primary");
   }
 
-  const hasCsv = batchFiles.some(f => f.name.toLowerCase().endsWith(".csv"));
-  runBatchBtn.disabled = !hasCsv;
-
   log(`Selected ${batchFiles.length} files.`);
-  log(hasCsv ? "CSV detected. Ready to run." : "No CSV detected in selection.");
+  refreshBatchRunState();
+});
+
+[batchOutSilo, batchOutWeb, batchOutDim].forEach(cb => {
+  cb.addEventListener("change", () => {
+    refreshBatchRunState();
+  });
 });
 
 runBatchBtn.addEventListener("click", async () => {
@@ -726,40 +988,46 @@ runBatchBtn.addEventListener("click", async () => {
 
   if (!batchFiles.length) return;
 
-  const outSize = parseInt(batchSize.value, 10);
-  const whiteThreshold = parseInt(whiteThresholdEl.value, 10) || 245;
+  const types = selectedBatchTypes();
+  if (!(types.silo || types.web || types.dim)) return;
 
-  // Find CSV
-  const csvFile = batchFiles.find(f => f.name.toLowerCase().endsWith(".csv"));
-  if (!csvFile) {
-    alert("No CSV found in selected folder.");
+  // Collect images
+  const images = batchFiles.filter(f => {
+    const lower = f.name.toLowerCase();
+    return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp");
+  });
+
+  if (!images.length) {
+    alert("No images found in selected folder.");
     return;
   }
 
-  log(`Using CSV: ${csvFile.name}`);
-
-  const csvText = await csvFile.text();
-  const rows = parseCSV(csvText);
-
-  // Validate headers (like your example)
-  const required = ["input_name", "PlantHeight", "PlantWidth"];
-  for (const h of required) {
-    if (!(h in (rows[0] || {}))) {
-      alert(`CSV missing required column: ${h}`);
+  let rows = null;
+  if (types.dim) {
+    const csvFile = batchFiles.find(f => f.name.toLowerCase().endsWith(".csv"));
+    if (!csvFile) {
+      alert("DIM is checked, but no CSV was found in the folder.");
       return;
+    }
+    log(`Using CSV: ${csvFile.name}`);
+    const csvText = await csvFile.text();
+    rows = parseCSV(csvText);
+
+    const required = ["input_name", "PlantHeight", "PlantWidth"];
+    for (const h of required) {
+      if (!(h in (rows[0] || {}))) {
+        alert(`CSV missing required column: ${h}`);
+        return;
+      }
     }
   }
 
-  // Index images by name and stem
+  // Index images by exact name and by stem
   const imagesByName = new Map();
   const imagesByStem = new Map();
-  for (const f of batchFiles) {
-    const lower = f.name.toLowerCase();
-    if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp")) {
-      imagesByName.set(f.name, f);
-      const stem = f.name.replace(/\.[^.]+$/, "");
-      imagesByStem.set(stem, f);
-    }
+  for (const f of images) {
+    imagesByName.set(f.name, f);
+    imagesByStem.set(stemFromName(f.name), f);
   }
 
   const zip = new JSZip();
@@ -768,51 +1036,80 @@ runBatchBtn.addEventListener("click", async () => {
 
   let ok = 0, fail = 0;
 
-  log(`Processing ${rows.length} rows...`);
+  if (!types.dim) {
+    // No CSV required: process all images
+    log(`Processing ${images.length} images (no CSV)...`);
+    for (let i = 0; i < images.length; i++) {
+      const file = images[i];
+      try {
+        const img = await loadImageFromFile(file);
 
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    const inputName = (r["input_name"] || "").trim();
-    const h = (r["PlantHeight"] || "").trim();
-    const w = (r["PlantWidth"] || "").trim();
+        if (types.silo) {
+          const c = renderSilo57({ sourceImg: img });
+          outFolder.file(makeSiloName(file.name), await canvasToJpegBlob(c, 1.0));
+        }
+        if (types.web) {
+          const c = renderWeb({ sourceImg: img });
+          outFolder.file(makeWebName(file.name), await canvasToJpegBlob(c, 1.0));
+        }
+        if (types.dim) {
+          // (won’t happen here)
+        }
 
-    if (!inputName) {
-      fail++;
-      log(`[${i+1}] SKIP: empty input_name`);
-      continue;
+        ok++;
+        log(`[${i+1}] OK: ${file.name}`);
+      } catch (e) {
+        fail++;
+        log(`[${i+1}] FAIL: ${file.name} (${e})`);
+      }
     }
+  } else {
+    // DIM requires CSV rows
+    log(`Processing ${rows.length} rows from CSV...`);
 
-    // Match by exact name OR stem
-    const stem = inputName.replace(/\.[^.]+$/, "");
-    const file = imagesByName.get(inputName) || imagesByStem.get(stem);
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const inputName = (r["input_name"] || "").trim();
+      const h = (r["PlantHeight"] || "").trim();
+      const w = (r["PlantWidth"] || "").trim();
 
-    if (!file) {
-      fail++;
-      log(`[${i+1}] FAIL: image not found for "${inputName}"`);
-      continue;
-    }
+      if (!inputName) {
+        fail++;
+        log(`[${i+1}] SKIP: empty input_name`);
+        continue;
+      }
 
-    try {
-      const img = await loadImageFromFile(file);
-      const canvas = renderComposite({
-        sourceImg: img,
-        heightLabel: h,
-        widthLabel: w,
-        outSize,
-        bgMode: "auto",
-        whiteThreshold
-      });
+      const stem = stemFromName(inputName);
+      const file = imagesByName.get(inputName) || imagesByStem.get(stem);
 
-      const blob = await canvasToJpegBlob(canvas, 0.95);
-      const outName = makeDimName(file.name);
+      if (!file) {
+        fail++;
+        log(`[${i+1}] FAIL: image not found for "${inputName}"`);
+        continue;
+      }
 
-      outFolder.file(outName, blob);
+      try {
+        const img = await loadImageFromFile(file);
 
-      ok++;
-      log(`[${i+1}] OK: ${file.name} -> ${outName}`);
-    } catch (e) {
-      fail++;
-      log(`[${i+1}] FAIL: ${file.name} (${e})`);
+        if (types.silo) {
+          const c = renderSilo57({ sourceImg: img });
+          outFolder.file(makeSiloName(file.name), await canvasToJpegBlob(c, 1.0));
+        }
+        if (types.web) {
+          const c = renderWeb({ sourceImg: img });
+          outFolder.file(makeWebName(file.name), await canvasToJpegBlob(c, 1.0));
+        }
+        if (types.dim) {
+          const c = renderDim({ sourceImg: img, heightLabel: h, widthLabel: w });
+          outFolder.file(makeDimName(file.name), await canvasToJpegBlob(c, 1.0));
+        }
+
+        ok++;
+        log(`[${i+1}] OK: ${file.name}`);
+      } catch (e) {
+        fail++;
+        log(`[${i+1}] FAIL: ${file.name} (${e})`);
+      }
     }
   }
 
@@ -823,7 +1120,7 @@ runBatchBtn.addEventListener("click", async () => {
   const zipBlob = await zip.generateAsync({ type: "blob" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(zipBlob);
-  a.download = `Plant_DIM_${folderName}.zip`;
+  a.download = `Plant_EXPORT_${folderName}.zip`;
   a.click();
   URL.revokeObjectURL(a.href);
 });

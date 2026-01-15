@@ -22,7 +22,6 @@
     <nav class="tabs">
       <button class="tab active" data-tab="single">Single Dimension</button>
       <button class="tab" data-tab="batch">CSV/Batch</button>
-      <button class="tab" data-tab="4-in-1">Testing Tab</button>
     </nav>
 
     <!-- SINGLE -->
@@ -33,25 +32,34 @@
 
           <label class="field">
             <span>Plant Image</span>
-            
+
             <div class="file-row">
-              <button type="button" id="singleImageBtn" class"file-btn">
+              <button type="button" id="singleImageBtn" class="file-btn">
                 Choose file &#128194;
               </button>
-              <span id="singleImageName" class="file-name">
-                No file selected
-              </span>
+              <span id="singleImageName" class="file-name">No file selected</span>
             </div>
 
-            <input
-              id="singleImage"
-              type="file"
-              accept="image/*"
-              hidden
-            />
+            <input id="singleImage" type="file" accept="image/*" hidden />
           </label>
 
-          <div class="grid2">
+          <div class="checks">
+            <label class="check">
+              <input id="singleOutSilo" type="checkbox" checked />
+              <span>Silo JPG</span>
+            </label>
+            <label class="check">
+              <input id="singleOutWeb" type="checkbox" />
+              <span>Web JPG</span>
+            </label>
+            <label class="check">
+              <input id="singleOutDim" type="checkbox" />
+              <span>DIM</span>
+            </label>
+          </div>
+
+          <!-- DIM label inputs (hidden unless DIM is checked) -->
+          <div id="dimInputsSingle" class="grid2 hidden">
             <label class="field">
               <span>Height Label</span>
               <input id="heightLabel" type="text" placeholder='e.g., 18"-20"' />
@@ -62,35 +70,15 @@
             </label>
           </div>
 
-          <div class="grid2">
-            <label class="field">
-              <span>Output Size (px)</span>
-              <select id="singleSize">
-                <option>1200</option>
-                <option>1600</option>
-                <option selected>2200</option>
-                <option>3000</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Background Detection</span>
-              <select id="bgMode">
-                <option value="auto" selected>Auto (alpha first)</option>
-                <option value="alpha">Alpha only</option>
-                <option value="white">Near-white fallback</option>
-              </select>
-            </label>
-          </div>
-
           <div class="actions">
-            <button id="downloadSingle" disabled>Download JPG</button>
+            <button id="downloadSingle" disabled>Download</button>
           </div>
 
           <p class="hint">
-            Tip: For the best bounds detection, use transparent PNGs (alpha channel).
+            Tip: Transparent PNGs produce the best bounds detection.
           </p>
         </div>
+
 
         <div class="card">
           <h2>Preview &#128269;</h2>
@@ -105,8 +93,9 @@
         <div class="card">
           <h2>Batch</h2>
           <p class="hint">
-            Select a folder that contains images + a CSV with headers:
+            Select a folder that contains images and optionally a CSV with headers:
             <code>input_name,PlantHeight,PlantWidth</code>.
+            CSV is required only if <b>DIM</b> is checked.
           </p>
 
           <label class="field">
@@ -121,33 +110,26 @@
               </span>
             </div>
 
-            <input
-              id="batchFolder"
-              type="file"
-              webkitdirectory
-              multiple
-              hidden
-            />
+            <input id="batchFolder" type="file" webkitdirectory multiple hidden />
           </label>
-          <div class="grid2">
-            <label class="field">
-              <span>Output Size (px)</span>
-              <select id="batchSize">
-                <option>1200</option>
-                <option>1600</option>
-                <option selected>2200</option>
-                <option>3000</option>
-              </select>
-            </label>
 
-            <label class="field">
-              <span>White Threshold (fallback)</span>
-              <input id="whiteThreshold" type="number" min="200" max="255" value="245" />
+          <div class="checks">
+            <label class="check">
+              <input id="batchOutSilo" type="checkbox" checked />
+              <span>Silo JPG</span>
+            </label>
+            <label class="check">
+              <input id="batchOutWeb" type="checkbox" />
+              <span>Web JPG</span>
+            </label>
+            <label class="check">
+              <input id="batchOutDim" type="checkbox" />
+              <span>DIM</span>
             </label>
           </div>
 
           <div class="actions">
-            <button id="runBatch" class="primary" disabled>Run Batch → Download ZIP</button>
+            <button id="runBatch" class="primary" disabled>Run → Download</button>
           </div>
 
           <div class="log" id="batchLog"></div>
@@ -162,15 +144,6 @@
             <li>Sometimes when you select a folder, it'll say there's one more file selected than what's actually in there. 
                 This is completely fine and is just a browser dependent bug.<br><br></li>
           </ul>
-        </div>
-      </div>
-    </section>
-
-    <section id="4-in-1" class="panel">
-      <header>oh nah</header>
-      <div class="row">
-        <div class="card">
-          <h2>Testersons</h2>
         </div>
       </div>
     </section>

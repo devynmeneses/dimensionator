@@ -255,7 +255,7 @@ code{
   gap: 12px;
 }
 
-.file-btm:hover {
+.file-btn:hover {
   border-color: var(--border-hover);
   background: var(--panel);
   color: var(--text);
@@ -277,4 +277,33 @@ code{
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 260px;
+}
+
+.checks{
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+  margin:10px 0 6px;
+}
+
+.check{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--panel);
+  cursor:pointer;
+  user-select:none;
+}
+
+.check input{
+  width:16px;
+  height:16px;
+  margin:0;
+}
+
+.hidden{
+  display:none !important;
 }
