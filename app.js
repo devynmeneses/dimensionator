@@ -1013,7 +1013,7 @@ runBatchBtn.addEventListener("click", async () => {
     const csvText = await csvFile.text();
     rows = parseCSV(csvText);
 
-    const required = ["input_name", "PlantHeight", "PlantWidth"];
+    const required = ["FILE NAME", "PLANT HEIGHT", "PLANT WIDTH"];
     for (const h of required) {
       if (!(h in (rows[0] || {}))) {
         alert(`CSV missing required column: ${h}`);
@@ -1069,13 +1069,13 @@ runBatchBtn.addEventListener("click", async () => {
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
-      const inputName = (r["input_name"] || "").trim();
-      const h = (r["PlantHeight"] || "").trim();
-      const w = (r["PlantWidth"] || "").trim();
+      const inputName = (r["FILE NAME"] || "").trim();
+      const h = (r["PLANT HEIGHT"] || "").trim();
+      const w = (r["PLANT WIDTH"] || "").trim();
 
       if (!inputName) {
         fail++;
-        log(`[${i+1}] SKIP: empty input_name`);
+        log(`[${i+1}] SKIP: empty FILE NAME`);
         continue;
       }
 
