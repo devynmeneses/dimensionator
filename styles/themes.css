@@ -1,0 +1,53 @@
+/**
+ * ============================================================================
+ *  COLOR THEMES
+ * ============================================================================
+ *  Each theme is one block of colors, Monkeytype-style. The page reads only
+ *  these variables, so a new theme is:
+ *    1. copy a block below, give it a new data-theme name, change the colors
+ *    2. add it to the list in src/ui/theme-picker.js
+ *
+ *  --bg       page background
+ *  --sub-alt  buttons, inputs, table (clearly lighter than --bg)
+ *  --border   edges of buttons, inputs and panels
+ *  --sub      secondary text: labels, hints, inactive tabs
+ *  --text     main text
+ *  --main     the theme's signature color: active tab, main buttons, focus
+ *  --accent   a second highlight: "=N" references, notes on legacy options
+ *  --error    problems: broken references, warnings, remove hover
+ *  --on-main  text on top of --main
+ *
+ *  Contrast targets every theme meets (checked with the WCAG formula):
+ *    --sub on --bg and --sub-alt ......... at least 4.5 : 1 (readable small text)
+ *    --text on --bg and --sub-alt ........ at least 7 : 1
+ *    --on-main on --main ................. at least 4.5 : 1
+ *    --border on --bg .................... at least 2.2 : 1 (visible edges)
+ * ============================================================================
+ */
+
+/* Jungle — deep canopy greens with leaf-bright and mango accents. Also the default. */
+:root,
+[data-theme="jungle"] {
+  --bg: #0d1f15;
+  --sub-alt: #1f402c;
+  --border: #3f6d4b;
+  --sub: #9cc8a4;
+  --text: #e6f5de;
+  --main: #7ed957;
+  --accent: #f4b942;
+  --error: #ff7a5c;
+  --on-main: #0d1f15;
+}
+
+/* Cobalt — the app's original blue look, kept for comparison. */
+[data-theme="cobalt"] {
+  --bg: #070a12;
+  --sub-alt: #1e2c49;
+  --border: #3b4f7a;
+  --sub: #a3b3c7;
+  --text: #eef3fa;
+  --main: #3d8bff;
+  --accent: #7cb4ff;
+  --error: #f87171;
+  --on-main: #070a12;
+}

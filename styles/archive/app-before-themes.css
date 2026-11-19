@@ -1,0 +1,435 @@
+/* Font used for the dimension labels drawn INTO the images (see settings.js → dim.font). */
+@font-face {
+  font-family: "din2014";
+  src: url("../assets/fonts/din2014.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* ---------------------------------------------------------------------------
+   Theme
+   --------------------------------------------------------------------------- */
+:root {
+  --bg: #070a12;
+  --panel: #0b1020;
+  --card: #0f172a;
+  --input: #0b1326;
+  --well: #0a0f1d;
+
+  --text: #e6edf6;
+  --muted: #93a4ba;
+
+  --border: #1b2a44;
+  --border-hover: #2a3b5e;
+
+  --primary: #1576ff;
+  --primary-weak: rgba(21, 118, 255, 0.18);
+  --warning: #ffb547;
+
+  --radius: 12px;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  --font: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+button, input, label { font: inherit; }
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ---------------------------------------------------------------------------
+   Layout
+   --------------------------------------------------------------------------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+header h1 { margin: 0 0 6px; font-size: 20px; }
+header p { margin: 0; font-size: 13px; }
+
+.card h2 { margin: 0 0 10px; font-size: 15px; }
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .columns { grid-template-columns: 1fr; }
+}
+
+.muted { color: var(--muted); font-weight: normal; }
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Tabs
+   --------------------------------------------------------------------------- */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0 12px;
+}
+
+.tab.active {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ---------------------------------------------------------------------------
+   Controls
+   --------------------------------------------------------------------------- */
+button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+button.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.field { display: block; margin: 10px 0; }
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.field input[type="text"] {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--input);
+  color: var(--text);
+  outline: none;
+}
+
+.field input[type="text"]::placeholder { color: rgba(147, 164, 186, 0.7); }
+
+.field input[type="text"]:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-weak);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-name {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 10px 0 6px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: pointer;
+  user-select: none;
+}
+
+.check input { width: 16px; height: 16px; margin: 0; }
+
+/* Collapsed "Legacy Options" section holding the output checkboxes. */
+.legacy-options { margin: 10px 0 6px; }
+
+.legacy-options summary {
+  display: inline-block;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  color: var(--muted);
+  list-style: none;
+}
+
+.legacy-options summary::-webkit-details-marker { display: none; }
+.legacy-options summary::before { content: "▸ "; }
+.legacy-options[open] summary::before { content: "▾ "; }
+.legacy-options summary:hover { color: var(--text); }
+.legacy-options .checks { margin-top: 8px; }
+.legacy-summary { color: var(--primary); }
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+   Multi Image table
+   --------------------------------------------------------------------------- */
+.table-wrap {
+  margin-top: 12px;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.image-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.image-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: normal;
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.image-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.image-table tr { cursor: pointer; }
+.image-table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+.image-table tbody tr.selected { background: var(--primary-weak); }
+.image-table tbody tr:last-child td { border-bottom: none; }
+
+.row-number { color: var(--muted); width: 1%; }
+
+.row-name {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.image-table input {
+  width: 100%;
+  min-width: 70px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--input);
+  color: var(--text);
+  outline: none;
+}
+
+.image-table input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-weak);
+}
+
+/* "=N" references: the resolved value shows at the right edge of the box. */
+.label-cell { position: relative; }
+
+.reference-result {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  max-width: 55%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--primary);
+  pointer-events: none;
+}
+
+.image-table input.is-reference {
+  padding-right: 45%;
+  border-color: var(--primary-weak);
+  background: rgba(21, 118, 255, 0.08);
+}
+
+.image-table input.is-broken { border-color: #f87171; }
+.image-table input.is-broken + .reference-result { color: #f87171; font-weight: 600; }
+
+.remove-button {
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.remove-button:hover:not(:disabled) { color: #f87171; border-color: #f87171; }
+
+.preview-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.preview-nav button { padding: 6px 14px; font-size: 18px; line-height: 1; }
+
+.preview-name {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------------------
+   Preview, log, notes
+   --------------------------------------------------------------------------- */
+
+/* Always a square of the same size; the output inside is scaled to fit, so the
+   preview doesn't jump around when the output's size or shape changes. */
+.preview-frame {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--well);
+  overflow: hidden;
+}
+
+.preview-frame canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.preview-placeholder {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.preview-frame.empty canvas { visibility: hidden; }
+.preview-frame.empty .preview-placeholder { display: flex; }
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+.log {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--well);
+  color: #d6e2f2;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.notes li { margin-bottom: 14px; font-size: 13px; line-height: 1.45; }
+
+code {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: #dbeafe;
+}
+
+/* Fades in after 2s; main.js removes it as soon as the app starts. */
+.load-warning {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  color: var(--warning);
+  font-size: 13px;
+  opacity: 0;
+  animation: appear 0s 2s forwards;
+}
+
+@keyframes appear { to { opacity: 1; } }
+
+[hidden] { display: none !important; }

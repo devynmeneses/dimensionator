@@ -1,0 +1,6 @@
+.DS_Store
+# Local preview-server config for Claude Code
+.claude/
+# Real product photos used as test cases stay off the public repo
+tests/fixtures/*
+!tests/fixtures/README.md

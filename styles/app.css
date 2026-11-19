@@ -1,0 +1,558 @@
+/* Font used for the dimension labels drawn INTO the images (see settings.js → dim.font). */
+@font-face {
+  font-family: "din2014";
+  src: url("../assets/fonts/din2014.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   Colors come from styles/themes.css. A few shades are mixed from them here.
+   --------------------------------------------------------------------------- */
+:root {
+  --main-weak: color-mix(in srgb, var(--main) 18%, transparent);
+  --accent-weak: color-mix(in srgb, var(--accent) 14%, transparent);
+  --row-hover: color-mix(in srgb, var(--text) 5%, transparent);
+  --well: color-mix(in srgb, var(--bg) 70%, var(--sub-alt));
+
+  --radius: 8px;
+  --font: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --logo-font: "Lexend Deca", var(--font);
+  --speed: 150ms;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--bg); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  transition: background-color var(--speed), color var(--speed);
+}
+
+button, input, label { font: inherit; }
+
+::selection { background: var(--main); color: var(--on-main); }
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 32px;
+}
+
+@media (max-width: 600px) {
+  .app { padding: 16px; }
+}
+
+/* ---------------------------------------------------------------------------
+   Top bar: logo + tabs
+   --------------------------------------------------------------------------- */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.logo { line-height: 1; }
+
+.logo-top {
+  display: block;
+  font-family: var(--logo-font);
+  font-size: 11px;
+  color: var(--sub);
+  margin-bottom: 2px;
+}
+
+.logo h1 {
+  margin: 0;
+  font-family: var(--logo-font);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+
+/* Tabs look like Monkeytype's config bar: a pill of text buttons. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  background: var(--sub-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.tabs .tab {
+  background: none;
+  border-color: transparent;
+  color: var(--sub);
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.tabs .tab:hover:not(:disabled) { background: none; color: var(--text); }
+.tabs .tab.active { color: var(--main); font-weight: 500; }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ---------------------------------------------------------------------------
+   Layout
+   --------------------------------------------------------------------------- */
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+@media (max-width: 900px) {
+  .columns { grid-template-columns: 1fr; gap: 28px; }
+}
+
+/* Sections are flat (no boxes), like Monkeytype's settings page. */
+.card { min-width: 0; }
+
+.card h2 {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 500;
+  text-transform: lowercase;
+  color: var(--text);
+}
+
+.muted { color: var(--sub); font-weight: normal; }
+
+.hint {
+  color: var(--sub);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 40px;
+  font-size: 12px;
+  color: var(--sub);
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.footer a {
+  color: var(--sub);
+  text-decoration: none;
+  transition: color var(--speed);
+}
+
+.footer a:hover { color: var(--text); }
+
+/* ---------------------------------------------------------------------------
+   Controls
+   --------------------------------------------------------------------------- */
+button {
+  border: 1px solid var(--border);
+  text-transform: lowercase;
+  background: var(--sub-alt);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color var(--speed), color var(--speed);
+}
+
+button:hover:not(:disabled) {
+  background: var(--text);
+  color: var(--bg);
+}
+
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--main);
+  outline-offset: 2px;
+}
+
+button.primary {
+  background: var(--main);
+  border-color: var(--main);
+  color: var(--on-main);
+  font-weight: 500;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Text-only button (e.g. the theme picker in the footer). */
+.link-button {
+  background: none;
+  border-color: transparent;
+  padding: 4px 0;
+  color: var(--sub);
+}
+
+.link-button:hover:not(:disabled) { background: none; color: var(--text); }
+
+.field { display: block; margin: 14px 0; }
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--sub);
+  margin-bottom: 6px;
+  text-transform: lowercase;
+}
+
+input[type="text"] {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--sub-alt);
+  color: var(--text);
+  caret-color: var(--main);
+  outline: 2px solid transparent;
+  transition: outline-color var(--speed);
+}
+
+input[type="text"]::placeholder { color: var(--sub); opacity: 0.75; }
+input[type="text"]:focus { outline-color: var(--main); border-color: var(--main); }
+
+.field input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.file-name {
+  font-size: 13px;
+  color: var(--sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--sub-alt);
+  color: var(--sub);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--speed);
+}
+
+.check:has(input:checked) { color: var(--text); border-color: var(--main); }
+.check input { width: 14px; height: 14px; margin: 0; accent-color: var(--main); }
+
+/* Collapsed "Legacy Options" section holding the output checkboxes. */
+.legacy-options { margin: 14px 0 6px; }
+
+.legacy-options summary {
+  display: inline-block;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  color: var(--sub);
+  list-style: none;
+  text-transform: lowercase;
+  transition: color var(--speed);
+}
+
+.legacy-options summary::-webkit-details-marker { display: none; }
+.legacy-options summary::before { content: "▸ "; }
+.legacy-options[open] summary::before { content: "▾ "; }
+.legacy-options summary:hover { color: var(--text); }
+.legacy-options .checks { margin-top: 10px; }
+.legacy-summary { color: var(--accent); }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* ---------------------------------------------------------------------------
+   Multi Image table
+   --------------------------------------------------------------------------- */
+.table-wrap {
+  margin-top: 14px;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+.image-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.image-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sub-alt);
+  color: var(--sub);
+  font-size: 12px;
+  font-weight: normal;
+  text-align: left;
+  text-transform: lowercase;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.image-table td { padding: 5px 8px; }
+
+.image-table tr { cursor: pointer; }
+.image-table tbody tr { transition: background-color var(--speed); }
+.image-table tbody tr:hover { background: var(--row-hover); }
+.image-table tbody tr.selected { background: var(--main-weak); }
+.image-table tbody tr.selected .row-number { color: var(--main); }
+
+.row-number { color: var(--sub); width: 1%; }
+
+.row-name {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.image-table input {
+  width: 100%;
+  min-width: 70px;
+  padding: 6px 8px;
+}
+
+/* "=N" references: the resolved value shows at the right edge of the box. */
+.label-cell { position: relative; }
+
+.reference-result {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  max-width: 55%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--accent);
+  pointer-events: none;
+}
+
+.image-table input.is-reference {
+  padding-right: 45%;
+  background: var(--accent-weak);
+}
+
+.image-table input.is-broken { outline-color: var(--error); border-color: var(--error); }
+.image-table input.is-broken + .reference-result { color: var(--error); font-weight: 500; }
+
+.remove-button {
+  padding: 4px 8px;
+  background: none;
+  border-color: transparent;
+  color: var(--sub);
+}
+
+.remove-button:hover:not(:disabled) { background: none; color: var(--error); }
+
+.preview-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.preview-nav button { padding: 6px 14px; font-size: 18px; line-height: 1; }
+
+.preview-name {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------------------
+   Preview, log, notes
+   --------------------------------------------------------------------------- */
+
+/* Always a square of the same size; the output inside is scaled to fit, so the
+   preview doesn't jump around when the output's size or shape changes. */
+.preview-frame {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--well);
+  overflow: hidden;
+}
+
+.preview-frame canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 0;
+  background: transparent;
+}
+
+.preview-placeholder {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  color: var(--sub);
+  font-size: 13px;
+}
+
+.preview-frame.empty canvas { visibility: hidden; }
+.preview-frame.empty .preview-placeholder { display: flex; }
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+.log {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--well);
+  color: var(--text);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.notes { padding-left: 18px; color: var(--sub); }
+.notes li { margin-bottom: 14px; font-size: 13px; line-height: 1.6; }
+.notes li::marker { color: var(--main); }
+
+code {
+  background: var(--sub-alt);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+/* Fades in after 2s; main.js removes it as soon as the app starts. */
+.load-warning {
+  margin: 0 0 20px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--sub-alt);
+  color: var(--error);
+  font-size: 13px;
+  opacity: 0;
+  animation: appear 0s 2s forwards;
+}
+
+@keyframes appear { to { opacity: 1; } }
+
+/* ---------------------------------------------------------------------------
+   Theme picker (footer)
+   --------------------------------------------------------------------------- */
+.theme-picker { position: relative; }
+.theme-icon { color: var(--main); margin-right: 4px; }
+
+.theme-list {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 10;
+  min-width: 220px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--sub-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Each option is drawn in its OWN theme's colors, like Monkeytype's list. */
+.theme-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin: 2px 0;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--main);
+  font-size: 13px;
+  text-align: left;
+}
+
+.theme-option:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+.theme-option[aria-selected="true"] { outline: 2px solid var(--main); outline-offset: -2px; }
+
+.theme-dots { display: flex; gap: 4px; }
+
+.theme-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+[hidden] { display: none !important; }

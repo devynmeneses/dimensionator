@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dimensionator tests</title>
+  <link rel="stylesheet" href="../styles/themes.css" />
+  <link rel="stylesheet" href="../styles/app.css" />
+  <style>
+    body { padding: 20px; }
+    .pass { color: #4ade80; }
+    .fail { color: #f87171; }
+    #samples { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    #samples figure { margin: 0; }
+    #samples figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Dimensionator tests</h1>
+  <p class="muted">Open via a web server, e.g. <code>python3 -m http.server</code> → /tests/</p>
+  <pre id="results" class="log" style="height:auto"></pre>
+  <h2>Sample renders (synthetic plants)</h2>
+  <div id="samples"></div>
+  <script type="module" src="tests.js"></script>
+</body>
+</html>
