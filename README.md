@@ -11,7 +11,7 @@ Takes a cut-out photo of a potted plant and produces:
 Every tab makes **DIM** by default. Silo and Web are under the collapsed **Legacy Options**
 on each tab. Which outputs start checked is set by `checkedByDefault` in `src/settings.js`.
 
-Three ways to use it:
+Four ways to use it:
 
 - **Single Image:** one photo, with a live preview.
 - **Multi Image:** add several photos and type each one's labels in a table. You can flip
@@ -20,6 +20,10 @@ Three ways to use it:
     changes, chains (`=2` → `=1` works), and is flagged in red if the row doesn't exist.
   - Removing a row keeps references pointing at the same images. A reference to the removed row
     is replaced by that row's label.
+- **Multi-packs:** one photo, repeated in a 1, 2, 3, 4, 5, 6, 8 or 10-pack arrangement and
+  saved as a 2200×2200 JPEG (`Name_4PACK.jpg`). Each pot is centered on its spot. The
+  arrangements were measured from reference photos and live in `multipack.layouts` in
+  `src/settings.js`. Add a line there for a new pack size.
 - **CSV / Batch:** a whole folder. DIM labels come from a CSV with the columns
   `FILE NAME, PLANT HEIGHT, PLANT WIDTH`.
 
@@ -68,6 +72,7 @@ src/
   outputs/              one file per output type
     index.js            the list of output types (UI is built from this)
     silo.js  web.js  dim.js
+    multipack.js        multi-pack arrangements (Multi-packs tab)
   core/                 image logic, no UI
     analyze-plant.js    finds the plant's edges and the pot's center
     place-plant.js      decides how big to draw the plant and where
@@ -77,7 +82,7 @@ src/
     run-batch.js        processes a folder into a ZIP
     csv.js              reads the CSV
   ui/                   connects buttons, previews and logs to the logic above
-    single-mode.js  multi-mode.js  batch-mode.js   one file per tab
+    single-mode.js  multi-mode.js  multipack-mode.js  batch-mode.js   one file per tab
     output-picker.js  label-fields.js  preview.js  shared pieces
   naming.js             output file-name rules
   references.js         "=N" row references in the Multi Image table

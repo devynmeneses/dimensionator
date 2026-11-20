@@ -141,6 +141,39 @@ export const SETTINGS = {
   },
 
   // --------------------------------------------------------------------------
+  //  MULTI-PACKS – several copies of one plant on a 2200×2200 square
+  // --------------------------------------------------------------------------
+  multipack: {
+    sizePx: 2200,
+    centerOn: "pot", // horizontal centering of each plant: "pot" or "plant"
+    // "{count}" is replaced by the pack size: Fern.png → Fern_4PACK.jpg
+    fileSuffix: "_{count}PACK",
+    defaultCount: 2, // pack size selected when the tab opens
+    // Plants never come closer than this to the canvas edge (fraction of canvas size).
+    edgeMargin: 0.015,
+
+    // One entry per pack size, measured from the images in "multipack references".
+    // All sizes are fractions of the canvas size.
+    //   rows           plants in each row, top to bottom ([2, 1, 2] = 2, then 1, then 2)
+    //   plantHeight    how tall each plant is drawn
+    //   plantMaxWidth  how wide a plant may be (wide plants are drawn smaller to fit)
+    //   columnSpacing  distance between pot centers in a row
+    //   rowSpacing     distance between row centers
+    // Every row is centered left-to-right and the rows are centered top-to-bottom.
+    // To add a pack size, add a line here.
+    layouts: {
+      1: { rows: [1], plantHeight: 0.738, plantMaxWidth: 0.85, columnSpacing: 0, rowSpacing: 0 },
+      2: { rows: [2], plantHeight: 0.371, plantMaxWidth: 0.47, columnSpacing: 0.5, rowSpacing: 0 },
+      3: { rows: [1, 2], plantHeight: 0.361, plantMaxWidth: 0.457, columnSpacing: 0.487, rowSpacing: 0.468 },
+      4: { rows: [2, 2], plantHeight: 0.337, plantMaxWidth: 0.457, columnSpacing: 0.487, rowSpacing: 0.437 },
+      5: { rows: [2, 1, 2], plantHeight: 0.278, plantMaxWidth: 0.283, columnSpacing: 0.625, rowSpacing: 0.25 },
+      6: { rows: [3, 3], plantHeight: 0.277, plantMaxWidth: 0.283, columnSpacing: 0.313, rowSpacing: 0.375 },
+      8: { rows: [3, 2, 3], plantHeight: 0.247, plantMaxWidth: 0.303, columnSpacing: 0.333, rowSpacing: 0.333 },
+      10: { rows: [4, 2, 4], plantHeight: 0.186, plantMaxWidth: 0.22, columnSpacing: 0.25, rowSpacing: 0.333 },
+    },
+  },
+
+  // --------------------------------------------------------------------------
   //  Batch mode
   // --------------------------------------------------------------------------
   batch: {

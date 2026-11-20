@@ -21,8 +21,12 @@
 import { siloOutput } from "./silo.js";
 import { webOutput } from "./web.js";
 import { dimOutput } from "./dim.js";
+import { PACK_SIZES, multipackSuffix } from "./multipack.js";
 
 export const OUTPUT_TYPES = [siloOutput, webOutput, dimOutput];
 
-/** All file suffixes, used to clean up names like "Fern_SILO.png". */
-export const ALL_SUFFIXES = OUTPUT_TYPES.map((output) => output.fileSuffix);
+/** All file suffixes, used to clean up names like "Fern_SILO.png" or "Fern_4PACK.png". */
+export const ALL_SUFFIXES = [
+  ...OUTPUT_TYPES.map((output) => output.fileSuffix),
+  ...PACK_SIZES.map(multipackSuffix), // multi-packs (see multipack.js)
+];

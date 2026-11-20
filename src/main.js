@@ -15,6 +15,7 @@
 import { SETTINGS } from "./settings.js";
 import { setupSingleMode } from "./ui/single-mode.js";
 import { setupMultiMode } from "./ui/multi-mode.js";
+import { setupMultipackMode } from "./ui/multipack-mode.js";
 import { setupBatchMode } from "./ui/batch-mode.js";
 import { setupThemePicker } from "./ui/theme-picker.js";
 
@@ -27,6 +28,7 @@ setupThemePicker();
 setupTabs();
 setupSingleMode();
 setupMultiMode();
+setupMultipackMode();
 setupBatchMode();
 
 function setupTabs() {

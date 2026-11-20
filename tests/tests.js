@@ -12,6 +12,7 @@ import { analyzePlant } from "../src/core/analyze-plant.js";
 import { placePlant } from "../src/core/place-plant.js";
 import { boxWidth, boxHeight } from "../src/core/box.js";
 import { parseReference, resolveCell, updateAfterRowRemoved } from "../src/references.js";
+import { PACK_SIZES, multipackOutput, slotPositions } from "../src/outputs/multipack.js";
 
 const resultsBox = document.getElementById("results");
 
@@ -112,6 +113,11 @@ test("naming: strips known suffixes and extension", () => {
   equal(baseName("Fern_SILO-2200x2200.png", ALL_SUFFIXES), "Fern");
   equal(baseName("Fern_DIM.jpg", ALL_SUFFIXES), "Fern");
   equal(baseName("Big.Fern_SILO.png", ALL_SUFFIXES), "Big.Fern");
+});
+
+test("naming: multi-pack names", () => {
+  equal(baseName("Fern_4PACK.png", ALL_SUFFIXES), "Fern");
+  equal(outputFileName("Fern_SILO.png", "_8PACK", ALL_SUFFIXES, ".jpg"), "Fern_8PACK.jpg");
 });
 
 test("naming: builds output file names", () => {
@@ -255,6 +261,40 @@ test("DIM: height label stays clear of a wide plant", () => {
     if (row[x * 4] < 200) lastLabelPixel = x; // dark = label text
   }
   if (lastLabelPixel >= plantLeft - 10) throw new Error(`label reaches x=${lastLabelPixel}, plant starts at ${plantLeft}`);
+});
+
+// ---------------------------------------------------------------------------
+//  Multi-packs
+// ---------------------------------------------------------------------------
+
+for (const count of PACK_SIZES) {
+  test(`multi-pack ${count}: right number of plants, centered on the canvas`, () => {
+    const layout = SETTINGS.multipack.layouts[count];
+    const size = SETTINGS.multipack.sizePx;
+    const slots = slotPositions(layout, size);
+    equal(slots.length, count, "plants");
+    near(slots.reduce((sum, s) => sum + s.x, 0) / count, size / 2, 0.5, "average x");
+    const ys = slots.map((s) => s.y);
+    near((Math.min(...ys) + Math.max(...ys)) / 2, size / 2, 0.5, "rows centered");
+  });
+}
+
+test("multi-pack: each pot sits on its spot, even with lopsided leaves", () => {
+  const plant = makePlant({ potX: 500, lean: 250 }); // leaves lean right of the pot
+  const analysis = analyzePlant(plant, SETTINGS.detection);
+  const canvas = multipackOutput(2).render({ image: plant, analysis });
+  const slots = slotPositions(SETTINGS.multipack.layouts[2], canvas.width);
+
+  for (const slot of slots) {
+    // Look at just this plant's half of the canvas.
+    const half = document.createElement("canvas");
+    half.width = canvas.width / 2;
+    half.height = canvas.height;
+    const left = slot.x < canvas.width / 2 ? 0 : canvas.width / 2;
+    half.getContext("2d").drawImage(canvas, -left, 0);
+    const found = analyzePlant(half, { ...SETTINGS.detection, backgroundMode: "white" });
+    near(left + found.potCenterX, slot.x, 3, "pot x");
+  }
 });
 
 // ---------------------------------------------------------------------------

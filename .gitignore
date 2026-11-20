@@ -1,6 +1,7 @@
 .DS_Store
 # Local preview-server config for Claude Code
 .claude/
-# Real product photos used as test cases stay off the public repo
+# Real product photos (test cases and multi-pack references) stay off the public repo
+multipack references/
 tests/fixtures/*
 !tests/fixtures/README.md

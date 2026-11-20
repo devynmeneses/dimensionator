@@ -314,6 +314,33 @@ input[type="text"]:focus { outline-color: var(--main); border-color: var(--main)
   margin-top: 16px;
 }
 
+/* Row of choices where one is selected (multi-pack sizes). */
+.choice-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  background: var(--sub-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.choice-pills button {
+  min-width: 40px;
+  padding: 6px 12px;
+  background: none;
+  border-color: transparent;
+  color: var(--sub);
+}
+
+.choice-pills button:hover:not(:disabled) { background: none; color: var(--text); }
+
+.choice-pills button[aria-checked="true"] {
+  background: var(--main);
+  color: var(--on-main);
+  font-weight: 500;
+}
+
 /* ---------------------------------------------------------------------------
    Multi Image table
    --------------------------------------------------------------------------- */

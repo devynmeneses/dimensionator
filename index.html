@@ -35,6 +35,7 @@
       <nav class="tabs" role="tablist">
         <button class="tab active" data-panel="single" role="tab">single image</button>
         <button class="tab" data-panel="multi" role="tab">multi image</button>
+        <button class="tab" data-panel="multipack" role="tab">multi-packs</button>
         <button class="tab" data-panel="batch" role="tab">csv / batch</button>
       </nav>
     </header>
@@ -125,6 +126,47 @@
           <div class="preview-frame">
             <canvas id="multi-preview"></canvas>
             <span class="preview-placeholder">Add images to see a preview</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MULTI-PACKS ============ -->
+    <section id="multipack" class="panel">
+      <div class="columns">
+        <div class="card">
+          <h2>Multi-pack</h2>
+
+          <div class="field">
+            <span class="field-label">Plant Image</span>
+            <div class="file-row">
+              <button type="button" id="multipack-file-button">Choose file</button>
+              <span id="multipack-file-name" class="file-name">No file selected</span>
+            </div>
+            <input id="multipack-file-input" type="file" accept="image/*" hidden />
+          </div>
+
+          <div class="field">
+            <span class="field-label">Plants in pack</span>
+            <!-- One button per layout in settings.multipack.layouts, created by src/ui/multipack-mode.js -->
+            <div id="multipack-counts" class="choice-pills" role="radiogroup" aria-label="Plants in pack"></div>
+          </div>
+
+          <div class="actions">
+            <button id="multipack-download" class="primary" disabled>Download</button>
+          </div>
+
+          <p class="hint">
+            Copies of the plant are arranged like the reference multi-pack photos and saved as a
+            2200×2200 JPEG. Each pot is centered on its spot.
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>Preview <span id="multipack-preview-caption" class="muted"></span></h2>
+          <div class="preview-frame">
+            <canvas id="multipack-preview"></canvas>
+            <span class="preview-placeholder">Choose an image to see a preview</span>
           </div>
         </div>
       </div>
