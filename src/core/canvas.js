@@ -32,6 +32,18 @@ export function readPixels(image) {
   return ctx.getImageData(0, 0, image.width, image.height);
 }
 
+/**
+ * Makes background pixels transparent: wherever `mask` is 0, alpha becomes 0.
+ * Changes `imageData` in place and returns it as an ImageBitmap, ready to draw.
+ */
+export async function cutOut(imageData, mask) {
+  const { data } = imageData;
+  for (let p = 0, i = 3; p < mask.length; p++, i += 4) {
+    if (!mask[p]) data[i] = 0;
+  }
+  return createImageBitmap(imageData);
+}
+
 /** Encodes a canvas as an image file (JPEG by default). */
 export function canvasToBlob(canvas, mimeType, quality) {
   return new Promise((resolve, reject) => {

@@ -95,9 +95,12 @@ legacy/                 the previous version (v0.3.1), served at /legacy/
 ### How an image is processed
 
 1. **Analyze** (`analyze-plant.js`). Once per image, at full resolution:
-   - Find which pixels are plant: anything not transparent, or not near-white if the image
-     has no transparency.
-   - Find the box around those pixels.
+   - Find which pixels are plant: anything not transparent. If the image has no transparency,
+     it's anything that's neither near-white nor the background color read from the image's
+     edges, so off-white or light grey borders are ignored too.
+   - Throw away specks, dust and frame lines that aren't part of the plant.
+   - Find the box around the remaining pixels. Empty borders of any size don't matter.
+   - Make the background transparent, so no output ever shows a grey box or a stray speck.
    - Find the pot's center by scanning up from the bottom for wide, evenly colored rows. Small
      gaps (like notches between a pot's feet) are bridged, and the middle value across a band of
      rows is used, so one odd row can't skew it.

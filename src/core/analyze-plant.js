@@ -9,7 +9,13 @@
  *     width, height,   // size of the source image (px)
  *     bounds,          // Box tightly around the plant pixels (see box.js)
  *     potCenterX,      // x position of the pot's center (px)
+ *     mask,            // 1 byte per pixel: 1 = plant, 0 = background. Used by
+ *                      // render.js to cut the plant out; dropped after that.
  *   }
+ *
+ * Steps: decide which pixels are plant (using transparency, or the
+ * background color found at the image's edges), throw away specks and frame
+ * lines, then find the plant's box and its pot's center.
  */
 
 import { readPixels } from "./canvas.js";
@@ -25,11 +31,12 @@ export function analyzePixels(imageData, detectionSettings) {
   const { width, height } = imageData;
 
   const mask = buildPlantMask(imageData, detectionSettings);
+  removeStrayPieces(mask, width, height, detectionSettings.minPieceSize);
   const bounds = findBounds(mask, width, height) ?? fullBox(width, height);
   const potCenterX =
     findPotCenterX(imageData, mask, bounds, detectionSettings.pot) ?? boxCenter(bounds).x;
 
-  return { width, height, bounds, potCenterX };
+  return { width, height, bounds, potCenterX, mask };
 }
 
 // ---------------------------------------------------------------------------
@@ -38,24 +45,85 @@ export function analyzePixels(imageData, detectionSettings) {
 
 /**
  * Returns a mask with one byte per pixel: 1 = plant, 0 = background.
+ *
+ * Transparent images: anything not (nearly) transparent is plant.
+ * Other images: near-white is always background, and so is anything close to
+ * the background color read from the image's edges. That covers off-white or
+ * light grey borders, including a white-background photo sitting on one.
  */
 function buildPlantMask(imageData, settings) {
   const { data, width, height } = imageData;
   const mask = new Uint8Array(width * height);
-  const useAlpha = shouldUseAlpha(data, settings.backgroundMode);
-  const { alphaThreshold, whiteThreshold } = settings;
 
-  for (let i = 0, p = 0; p < mask.length; i += 4, p++) {
-    if (useAlpha) {
-      mask[p] = data[i + 3] > alphaThreshold ? 1 : 0;
-    } else {
-      const isWhite =
-        data[i] >= whiteThreshold && data[i + 1] >= whiteThreshold && data[i + 2] >= whiteThreshold;
-      mask[p] = isWhite ? 0 : 1;
+  if (shouldUseAlpha(data, settings.backgroundMode)) {
+    for (let i = 3, p = 0; p < mask.length; i += 4, p++) {
+      mask[p] = data[i] > settings.alphaThreshold ? 1 : 0;
     }
+    return mask;
+  }
+
+  const background = settings.detectBackgroundFromEdges ? detectBackgroundColor(imageData, settings) : null;
+
+  const { whiteThreshold: white, backgroundTolerance: tolerance } = settings;
+  for (let i = 0, p = 0; p < mask.length; i += 4, p++) {
+    const isNearWhite = data[i] >= white && data[i + 1] >= white && data[i + 2] >= white;
+    const isEdgeColor =
+      background !== null &&
+      Math.abs(data[i] - background.r) <= tolerance &&
+      Math.abs(data[i + 1] - background.g) <= tolerance &&
+      Math.abs(data[i + 2] - background.b) <= tolerance;
+    mask[p] = isNearWhite || isEdgeColor ? 0 : 1;
   }
 
   return mask;
+}
+
+/**
+ * The image's background color, read from a thin ring around its edges, or
+ * null if the edges don't show one clear, light color (then only the
+ * near-white rule is used). Only light colors are accepted so that a dark studio
+ * backdrop can't turn white flowers or pots into "background".
+ */
+function detectBackgroundColor(imageData, settings) {
+  const { data, width, height } = imageData;
+  const ring = Math.max(1, Math.round(Math.min(width, height) * 0.01));
+  const step = Math.max(1, Math.floor((2 * (width + height) * ring) / 4000)); // ~4000 samples
+  const reds = [];
+  const greens = [];
+  const blues = [];
+
+  let n = 0;
+  for (let y = 0; y < height; y++) {
+    const nearTopOrBottom = y < ring || y >= height - ring;
+    for (let x = 0; x < width; x++) {
+      if (!nearTopOrBottom && x >= ring && x < width - ring) {
+        x = width - ring - 1; // skip the middle of the row
+        continue;
+      }
+      if (n++ % step) continue;
+      const i = (y * width + x) * 4;
+      reds.push(data[i]);
+      greens.push(data[i + 1]);
+      blues.push(data[i + 2]);
+    }
+  }
+
+  const color = { r: median(reds), g: median(greens), b: median(blues) };
+  if (Math.min(color.r, color.g, color.b) < settings.minBackgroundLightness) return null;
+
+  const tolerance = settings.backgroundTolerance;
+  let matching = 0;
+  for (let k = 0; k < reds.length; k++) {
+    if (
+      Math.abs(reds[k] - color.r) <= tolerance &&
+      Math.abs(greens[k] - color.g) <= tolerance &&
+      Math.abs(blues[k] - color.b) <= tolerance
+    ) {
+      matching++;
+    }
+  }
+
+  return matching / reds.length >= 0.6 ? color : null;
 }
 
 function shouldUseAlpha(data, backgroundMode) {
@@ -69,6 +137,96 @@ function hasTransparency(data) {
     if (data[i] < 255) return true;
   }
   return false;
+}
+
+// ---------------------------------------------------------------------------
+//  Step 1b: throw away specks and frame lines
+// ---------------------------------------------------------------------------
+
+/**
+ * Clears (in place) mask pixels that aren't part of the plant:
+ *   - small pieces, like dust or specks: smaller than `minPieceSize` of the
+ *     biggest piece (detached flowers and leaves are much bigger, so they stay)
+ *   - outlines, like a frame line around the photo: a piece that surrounds the
+ *     plant but is almost entirely empty inside
+ *
+ * To stay fast on big photos, pieces are found on a coarse grid (about 1000
+ * cells across the long side): a cell is "plant" if any pixel in it is.
+ */
+function removeStrayPieces(mask, width, height, minPieceSize) {
+  const cell = Math.max(1, Math.ceil(Math.max(width, height) / 1000));
+  const gridW = Math.ceil(width / cell);
+  const gridH = Math.ceil(height / cell);
+
+  // 1. Coarse grid of plant cells.
+  const grid = new Uint8Array(gridW * gridH);
+  for (let y = 0; y < height; y++) {
+    const gridRow = Math.floor(y / cell) * gridW;
+    const row = y * width;
+    for (let x = 0; x < width; x++) {
+      if (mask[row + x]) grid[gridRow + Math.floor(x / cell)] = 1;
+    }
+  }
+
+  // 2. Label connected pieces of plant cells (diagonals count as touching).
+  const labels = new Int32Array(gridW * gridH); // 0 = none, 1.. = piece number
+  const pieces = [null]; // pieces[label] = { cells, left, top, right, bottom }
+  const stack = [];
+  for (let start = 0; start < grid.length; start++) {
+    if (!grid[start] || labels[start]) continue;
+    const label = pieces.length;
+    const piece = { cells: 0, left: gridW, top: gridH, right: -1, bottom: -1 };
+    pieces.push(piece);
+    labels[start] = label;
+    stack.push(start);
+
+    while (stack.length) {
+      const c = stack.pop();
+      const cx = c % gridW;
+      const cy = (c - cx) / gridW;
+      piece.cells++;
+      piece.left = Math.min(piece.left, cx);
+      piece.right = Math.max(piece.right, cx);
+      piece.top = Math.min(piece.top, cy);
+      piece.bottom = Math.max(piece.bottom, cy);
+
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= gridW || ny >= gridH) continue;
+          const n = ny * gridW + nx;
+          if (grid[n] && !labels[n]) {
+            labels[n] = label;
+            stack.push(n);
+          }
+        }
+      }
+    }
+  }
+  if (pieces.length <= 2) return; // nothing, or a single piece: nothing to remove
+
+  // 3. Decide which pieces to keep.
+  const biggest = pieces.slice(1).reduce((a, b) => (b.cells > a.cells ? b : a));
+  const keep = pieces.map((piece) => {
+    if (!piece) return false;
+    if (piece === biggest) return true;
+    if (piece.cells < biggest.cells * minPieceSize) return false; // speck
+    const surroundsPlant =
+      piece.left <= biggest.left && piece.right >= biggest.right &&
+      piece.top <= biggest.top && piece.bottom >= biggest.bottom;
+    const boxCells = (piece.right - piece.left + 1) * (piece.bottom - piece.top + 1);
+    return !(surroundsPlant && piece.cells / boxCells < 0.05); // frame line
+  });
+
+  // 4. Clear pixels in dropped pieces.
+  for (let y = 0; y < height; y++) {
+    const gridRow = Math.floor(y / cell) * gridW;
+    const row = y * width;
+    for (let x = 0; x < width; x++) {
+      if (mask[row + x] && !keep[labels[gridRow + Math.floor(x / cell)]]) mask[row + x] = 0;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -19,18 +19,32 @@ export const SETTINGS = {
   // --------------------------------------------------------------------------
   detection: {
     // How to tell plant pixels from background pixels:
-    //   "auto"  – use transparency if the image has any, otherwise treat
-    //             near-white pixels as background (recommended)
+    //   "auto"  – use transparency if the image has any, otherwise use the
+    //             background color (recommended)
     //   "alpha" – always use transparency
-    //   "white" – always treat near-white pixels as background
+    //   "white" – never use transparency; always use the background color
     backgroundMode: "auto",
 
     // 0–255. Pixels MORE transparent than this count as background.
     alphaThreshold: 10,
 
-    // 0–255. When using "white" mode, pixels whose red, green AND blue are all
-    // at or above this count as background.
+    // For images without transparency, the background color is read from the
+    // image's edges, so off-white or light grey borders are ignored too.
+    detectBackgroundFromEdges: true,
+    // 0–255. How close a pixel must be to that color to count as background.
+    backgroundTolerance: 12,
+    // 0–255. The edge color is only trusted if it's this light (on every
+    // channel); darker edges are ignored and only the near-white rule applies.
+    minBackgroundLightness: 200,
+
+    // 0–255. Pixels whose red, green AND blue are all at or above this always
+    // count as background (so a white photo on a grey border works too).
     whiteThreshold: 245,
+
+    // Specks, dust and frame lines around the plant are ignored. Pieces
+    // smaller than this (fraction of the plant's size) are thrown away;
+    // detached flowers or leaves are much bigger, so they stay.
+    minPieceSize: 0.002,
 
     // The pot's center is found by scanning up from the bottom of the plant
     // for rows that are wide and evenly colored (the pot).

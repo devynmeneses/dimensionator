@@ -5,17 +5,26 @@
 
 import { SETTINGS } from "./settings.js";
 import { ALL_SUFFIXES } from "./outputs/index.js";
-import { analyzePlant } from "./core/analyze-plant.js";
-import { canvasToBlob, loadImage } from "./core/canvas.js";
+import { analyzePixels } from "./core/analyze-plant.js";
+import { canvasToBlob, cutOut, loadImage, readPixels } from "./core/canvas.js";
 import { outputFileName } from "./naming.js";
 
 /**
  * Loads and analyzes an input image once, so every output can reuse it.
+ *
+ * `source.image` is a cleaned copy: the background (white, off-white, light
+ * grey or transparent), specks and frame lines are made transparent, so no
+ * output ever draws a grey box or stray dust.
  * Call source.image.close() when finished to free memory.
  */
 export async function prepareSource(file) {
-  const image = await loadImage(file);
-  return { name: file.name, image, analysis: analyzePlant(image, SETTINGS.detection) };
+  const original = await loadImage(file);
+  const pixels = readPixels(original);
+  original.close();
+
+  const { mask, ...analysis } = analyzePixels(pixels, SETTINGS.detection);
+  const image = await cutOut(pixels, mask);
+  return { name: file.name, image, analysis };
 }
 
 /**

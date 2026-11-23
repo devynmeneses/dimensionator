@@ -13,6 +13,7 @@ import { placePlant } from "../src/core/place-plant.js";
 import { boxWidth, boxHeight } from "../src/core/box.js";
 import { parseReference, resolveCell, updateAfterRowRemoved } from "../src/references.js";
 import { PACK_SIZES, multipackOutput, slotPositions } from "../src/outputs/multipack.js";
+import { prepareSource } from "../src/render.js";
 
 const resultsBox = document.getElementById("results");
 
@@ -261,6 +262,110 @@ test("DIM: height label stays clear of a wide plant", () => {
     if (row[x * 4] < 200) lastLabelPixel = x; // dark = label text
   }
   if (lastLabelPixel >= plantLeft - 10) throw new Error(`label reaches x=${lastLabelPixel}, plant starts at ${plantLeft}`);
+});
+
+// ---------------------------------------------------------------------------
+//  Borders: off-white backgrounds, specks, frame lines
+// ---------------------------------------------------------------------------
+
+/** Puts a (transparent) plant on a big, unevenly bordered canvas of `color`. */
+function onBorder(plant, color, { width = 2600, height = 3200, x = 250, y = 1400 } = {}) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(plant, x, y);
+  return canvas;
+}
+
+/** The plant's box and pot center, shifted back by the border offset. */
+function analyzeShifted(image, dx = 250, dy = 1400) {
+  const { bounds, potCenterX } = analyzePlant(image, SETTINGS.detection);
+  return {
+    bounds: { left: bounds.left - dx, top: bounds.top - dy, right: bounds.right - dx, bottom: bounds.bottom - dy },
+    potCenterX: potCenterX - dx,
+  };
+}
+
+function sameBox(actual, expected, tolerance = 2) {
+  for (const side of ["left", "top", "right", "bottom"]) near(actual[side], expected[side], tolerance, side);
+}
+
+const borderPlant = makePlant({ potX: 600, lean: 120 }); // transparent, slightly lopsided
+const clean = analyzePlant(borderPlant, SETTINGS.detection);
+
+test("borders: off-white border is ignored", () => {
+  const found = analyzeShifted(onBorder(borderPlant, "#f0f0f0"));
+  sameBox(found.bounds, clean.bounds);
+  near(found.potCenterX, clean.potCenterX, 2, "potCenterX");
+});
+
+test("borders: light grey border is ignored", () => {
+  const found = analyzeShifted(onBorder(borderPlant, "#dcdcdc"));
+  sameBox(found.bounds, clean.bounds);
+});
+
+test("borders: a speck of dust far from the plant is ignored", () => {
+  const image = onBorder(borderPlant, "#ffffff");
+  const ctx = image.getContext("2d");
+  ctx.fillStyle = "#777";
+  ctx.fillRect(2500, 60, 8, 8);
+  ctx.fillRect(40, 3100, 5, 5);
+  sameBox(analyzeShifted(image).bounds, clean.bounds);
+});
+
+test("borders: a thin frame line around the photo is ignored", () => {
+  const image = onBorder(borderPlant, "#f4f4f4");
+  const ctx = image.getContext("2d");
+  ctx.strokeStyle = "#555";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(20, 20, image.width - 40, image.height - 40);
+  sameBox(analyzeShifted(image).bounds, clean.bounds);
+});
+
+test("borders: pale flowers still count as plant on an off-white border", () => {
+  const plant = makePlant({ potX: 600 });
+  const ctx = plant.getContext("2d");
+  ctx.fillStyle = "#f5c6d6"; // pale pink
+  ctx.beginPath();
+  ctx.arc(600, 200, 80, 0, Math.PI * 2); // a flower above the leaves
+  ctx.fill();
+  const found = analyzeShifted(onBorder(plant, "#ececec"));
+  near(found.bounds.top, 120, 3, "top includes the flower");
+});
+
+test("borders: a white-background photo on an off-white border", () => {
+  const photo = makePlant({ potX: 600, lean: 120, whiteBackground: true });
+  sameBox(analyzeShifted(onBorder(photo, "#f0f0f0")).bounds, clean.bounds);
+});
+
+test("borders: dark backdrops fall back to the near-white rule (unchanged)", () => {
+  const image = onBorder(borderPlant, "#202020", { width: 1600, height: 1800, x: 200, y: 150 });
+  const { bounds } = analyzePlant(image, SETTINGS.detection);
+  sameBox(bounds, { left: 0, top: 0, right: image.width, bottom: image.height }, 0);
+});
+
+// Through prepareSource, so the cleaned cutout is used like in the app.
+const greyFile = new File(
+  [await new Promise((resolve) => onBorder(borderPlant, "#f0f0f0").toBlob(resolve, "image/png"))],
+  "Grey_border.png",
+  { type: "image/png" },
+);
+const greySource = await prepareSource(greyFile);
+
+test("borders: outputs show no grey box from an off-white border", () => {
+  for (const output of OUTPUT_TYPES) {
+    const canvas = output.render({ image: greySource.image, analysis: greySource.analysis, values: {} });
+    const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+    let grey = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (Math.abs(data[i] - 240) <= 3 && Math.abs(data[i + 1] - 240) <= 3 && Math.abs(data[i + 2] - 240) <= 3) grey++;
+    }
+    const share = grey / (canvas.width * canvas.height);
+    if (share > 0.001) throw new Error(`${output.label}: ${(share * 100).toFixed(2)}% of pixels are border grey`);
+  }
 });
 
 // ---------------------------------------------------------------------------
